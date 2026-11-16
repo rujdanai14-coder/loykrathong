@@ -225,7 +225,7 @@
     <a href="#admin" data-nav="admin">สำหรับครู</a>
   </nav>
 </header>
-<div class="demo-note">ต้นแบบนี้เก็บข้อมูลไว้ในเบราว์เซอร์ของเครื่องนี้ และอัปเดตข้ามแท็บได้ ยังไม่ได้เชื่อม Supabase</div>
+<div class="demo-note">เชื่อมต่อฐานข้อมูล Supabase แล้ว ทุกเครื่องเห็นข้อมูลเดียวกัน การเพิ่ม อนุมัติ และลบจะมีผลกับหน้าจอสาธารณะทันที</div>
 
 <!-- ===== ฉากกลางคืน: หน้าแรก + อ่างน้ำ ===== -->
 <section class="view" id="view-scene">
@@ -330,8 +330,9 @@
   <div class="wrap">
     <div id="loginBox" class="panel login">
       <h2>เข้าสู่ระบบสำหรับครู</h2>
-      <p class="info">ต้นแบบนี้ใช้รหัส PIN ชั่วคราว ระบบจริงต้องใช้บัญชีครูผ่าน Supabase Auth</p>
-      <input type="password" id="pin" inputmode="numeric" placeholder="รหัส PIN" autocomplete="off">
+      <p class="info">ใช้อีเมลและรหัสผ่านบัญชีครูที่ผู้ดูแลระบบสร้างให้</p>
+      <input type="text" id="loginEmail" inputmode="email" placeholder="อีเมล" autocomplete="username">
+      <input type="password" id="pin" placeholder="รหัสผ่าน" autocomplete="current-password">
       <label class="info" style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="showPin"> แสดงรหัส</label>
       <button type="button" class="primary" id="loginBtn">เข้าสู่ระบบ</button>
       <p class="msg" id="loginMsg"></p>
@@ -340,7 +341,7 @@
     <div id="adminBox" style="display:none">
       <div class="row" style="justify-content:space-between;margin-bottom:10px">
         <h2 style="margin:0">ระบบหลังบ้านสำหรับครู</h2>
-        <button type="button" id="logoutBtn">ออกจากระบบ</button>
+        <div class="row"><span class="info" id="adminEmail"></span><button type="button" id="logoutBtn">ออกจากระบบ</button></div>
       </div>
 
       <div class="panel">
@@ -397,10 +398,11 @@
 
       <div class="panel">
         <strong>ข้อมูลทดลอง</strong>
-        <p class="info">ใช้ทดสอบหน้าจอก่อนวันงาน ภาพเหล่านี้วาดด้วยโค้ด ไม่ใช่ผลงานนักเรียนจริง</p>
+        <p class="info">ใช้ทดสอบหน้าจอก่อนวันงาน ข้อมูลจะเขียนลงฐานข้อมูลจริงและทุกเครื่องจะเห็น กดลบข้อมูลทดลองทั้งหมดก่อนเปิดงานจริง</p>
         <div class="row">
           <button type="button" id="sampleBtn">เติมภาพนักเรียนตัวอย่าง</button>
           <button type="button" id="sampleGuestBtn">เติมกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบ</button>
+          <button type="button" class="danger" id="clearSampleBtn">ลบข้อมูลทดลองทั้งหมด</button>
         </div>
         <p class="msg" id="sampleMsg"></p>
       </div>
@@ -413,6 +415,7 @@
 <button type="button" id="musicBtn" aria-label="เปิดเพลงพื้นหลัง" title="เปิดเพลงพื้นหลัง">🔇</button>
 <audio id="bgm" preload="none" loop></audio>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 (() => {
   'use strict';
@@ -420,9 +423,10 @@
   /* ==========================================================
      ตั้งค่า
      ========================================================== */
-  const ADMIN_PIN = '2569';        // รหัสชั่วคราวสำหรับต้นแบบเท่านั้น
-  const DB_NAME = 'krathong-school-demo';
-  const STORE = 'drawings';
+  // Supabase: ใส่เฉพาะคีย์สาธารณะ (anon / publishable) ห้ามใส่ service_role
+  const SUPABASE_URL = 'https://engtqyzpyvicpfvwvqvj.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZ3RxeXpweXZpY3Bmdnd2cXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTUyNTgsImV4cCI6MjEwNzQ3MTI1OH0.ljyHbumJukOv3LGI5YY_DmPLpIxKFgmroUDO1gz_x-Y';
+  const BUCKET = 'krathong';
   const MAX_ITEMS = 1500;
   const MAX_FILE_MB = 25;
   const SIZES = { large: 2400, card: 1200, pond: 600 };
@@ -457,47 +461,71 @@
     : (ROOMS.find(r => r.id === id) || {}).label || 'ไม่ระบุห้อง';
 
   /* ==========================================================
-     ส่วนเก็บข้อมูล (Store)
-     ระบบจริง: แทนที่ฟังก์ชันใน Store ด้วย Supabase Storage + Database
-     และใช้ Realtime เรียก sync() เมื่อมีการเปลี่ยนแปลง
-     ห้ามใส่คีย์ service_role ในไฟล์นี้
+     ส่วนเก็บข้อมูล (Supabase)
+     ตาราง krathong_items + ที่เก็บไฟล์ krathong + Realtime
+     สิทธิ์ทั้งหมดถูกควบคุมด้วย Row Level Security ฝั่งเซิร์ฟเวอร์
      ========================================================== */
-  const dbPromise = new Promise((resolve, reject) => {
-    if (!('indexedDB' in window)) return reject(new Error('no-indexeddb'));
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' });
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  function idb(mode, fn) {
-    return dbPromise.then(db => new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, mode);
-      const req = fn(tx.objectStore(STORE));
-      tx.oncomplete = () => resolve(req ? req.result : undefined);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    }));
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const publicUrl = path => path ? sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null;
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const extOf = blob => (blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg');
+
+  function normalize(row) {
+    return {
+      id: row.id, type: row.type, room: row.room, design: row.design,
+      wish: row.wish, name: row.name, status: row.status, ai: row.ai,
+      createdAt: Date.parse(row.created_at),
+      paths: [row.large_path, row.card_path, row.pond_path].filter(Boolean),
+      urls: row.card_path ? { large: publicUrl(row.large_path || row.card_path), card: publicUrl(row.card_path), pond: publicUrl(row.pond_path) } : null,
+    };
   }
-  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('krathong-school') : null;
+  async function uploadBlobs(folder, blobs) {
+    const id = uuid();
+    const paths = {};
+    for (const [key, blob] of Object.entries(blobs)) {
+      const path = `${folder}/${id}-${key}.${extOf(blob)}`;
+      const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type, upsert: false });
+      if (error) throw error;
+      paths[key + '_path'] = path;
+    }
+    return paths;
+  }
   const Store = {
-    list: () => idb('readonly', s => s.getAll()),
-    count: () => idb('readonly', s => s.count()),
-    add: async rec => { await idb('readwrite', s => s.put(rec)); notifyOthers(); },
-    remove: async id => { await idb('readwrite', s => s.delete(id)); notifyOthers(); },
-    setStatus: async (id, status) => {
-      const rec = await idb('readonly', s => s.get(id));
-      if (!rec) return;
-      rec.status = status;
-      await idb('readwrite', s => s.put(rec));
-      notifyOthers();
+    async list() {
+      const { data, error } = await sb.from('krathong_items').select('*').order('created_at', { ascending: false }).limit(MAX_ITEMS);
+      if (error) throw error;
+      return data.map(normalize);
+    },
+    async addGuestDesign(design, wish, name, ai) {
+      const { data, error } = await sb.from('krathong_items')
+        .insert({ type: 'guest', room: 'guest', design, wish, name: name || null, status: 'approved', ai: ai || null })
+        .select('id').single();
+      if (error) throw error;
+      return data.id;
+    },
+    async addGuestPhoto(blobs, wish, name, status, ai) {
+      const paths = await uploadBlobs('guest', blobs);
+      const { data, error } = await sb.from('krathong_items')
+        .insert({ type: 'guest', room: 'guest', wish, name: name || null, status, ai, ...paths })
+        .select('id').single();
+      if (error) throw error;
+      return data.id;
+    },
+    async addStudent(room, blobs, ai) {
+      const paths = await uploadBlobs('student/' + room, blobs);
+      const { error } = await sb.from('krathong_items').insert({ type: 'student', room, ai: ai || null, ...paths });
+      if (error) throw error;
+    },
+    async setStatus(id, status) {
+      const { error } = await sb.from('krathong_items').update({ status }).eq('id', id);
+      if (error) throw error;
+    },
+    async remove(it) {
+      if (it.paths && it.paths.length) await sb.storage.from(BUCKET).remove(it.paths);
+      const { error } = await sb.from('krathong_items').delete().eq('id', it.id);
+      if (error) throw error;
     },
   };
-  function notifyOthers() {
-    if (channel) channel.postMessage('changed');
-    try { localStorage.setItem('krathong-ping', String(Date.now())); } catch {}
-    sync();
-  }
-  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   /* ==========================================================
      สถานะ
@@ -505,7 +533,7 @@
   const $ = id => document.getElementById(id);
   const items = new Map();
   let pondKrathongs = [];
-  let firstSync = true, syncing = false, syncAgain = false;
+  let firstSync = true, syncing = false, syncAgain = false, syncFailed = false;
   let sceneRoom = 'all';       // all | guest | รหัสห้อง
   let sceneMode = 'home';      // home | pond
   let galleryRoom = 'all';
@@ -545,8 +573,11 @@
       }
       firstSync = false;
       if (changed) renderAll();
+      syncFailed = false;
     } catch (e) {
       console.error(e);
+      if (!syncFailed) toast('เชื่อมต่อฐานข้อมูลไม่ได้ กำลังลองใหม่…');
+      syncFailed = true;
     } finally {
       syncing = false;
       if (syncAgain) { syncAgain = false; sync(); }
@@ -555,22 +586,19 @@
 
   function addItem(rec, fresh) {
     const type = rec.type || 'student';
-    let urls = null, img;
-    if (type === 'student') {
-      urls = { large: URL.createObjectURL(rec.large), card: URL.createObjectURL(rec.card), pond: URL.createObjectURL(rec.pond) };
+    let img;
+    if (rec.urls) {
       img = new Image();
-      img.src = urls.pond;
-    } else if (rec.pond) {
-      urls = { card: URL.createObjectURL(rec.card), pond: URL.createObjectURL(rec.pond) };
-      img = new Image();
-      img.src = urls.pond;
+      img.crossOrigin = 'anonymous';
+      img.src = rec.urls.pond;
     } else {
       img = designCanvas(rec.design);
     }
     const it = {
       id: rec.id, type, room: type === 'student' ? (rec.room || '') : 'guest',
       wish: rec.wish || '', name: rec.name || '', design: rec.design,
-      createdAt: rec.createdAt, urls, img, photo: type === 'guest' && !!rec.pond,
+      createdAt: rec.createdAt, urls: rec.urls, paths: rec.paths, img,
+      photo: type === 'guest' && !!rec.urls,
       status: rec.status || 'approved', ai: rec.ai || null,
       isNewUntil: fresh || rec.id === pendingHighlight ? Date.now() + 12000 : 0,
     };
@@ -579,9 +607,7 @@
   }
 
   function removeItem(id) {
-    const it = items.get(id);
-    if (!it) return;
-    if (it.urls) Object.values(it.urls).forEach(u => URL.revokeObjectURL(u));
+    if (!items.has(id)) return;
     items.delete(id);
     pondKrathongs = pondKrathongs.filter(k => k.item.id !== id);
   }
@@ -786,7 +812,7 @@
       del.className = 'danger'; del.type = 'button'; del.textContent = 'ลบ';
       del.addEventListener('click', async () => {
         if (!confirm('ลบรายการนี้ออกจากทุกหน้าจอใช่หรือไม่?')) return;
-        try { await Store.remove(it.id); toast('ลบแล้ว'); } catch { alert('ลบไม่สำเร็จ'); }
+        try { await Store.remove(it); toast('ลบแล้ว'); sync(); } catch (e) { alert('ลบไม่สำเร็จ: ' + (e.message || e)); }
       });
       const acts = document.createElement('div');
       acts.className = 'acts';
@@ -794,7 +820,7 @@
         const ok = document.createElement('button');
         ok.className = 'primary'; ok.type = 'button'; ok.textContent = 'อนุมัติ';
         ok.addEventListener('click', async () => {
-          try { await Store.setStatus(it.id, 'approved'); toast('อนุมัติแล้ว กระทงขึ้นแม่น้ำ'); } catch { alert('อนุมัติไม่สำเร็จ'); }
+          try { await Store.setStatus(it.id, 'approved'); toast('อนุมัติแล้ว กระทงขึ้นแม่น้ำ'); sync(); } catch (e) { alert('อนุมัติไม่สำเร็จ: ' + (e.message || e)); }
         });
         acts.append(ok);
         del.textContent = 'ไม่อนุมัติ (ลบ)';
@@ -981,19 +1007,18 @@
     const btn = $('floatBtn');
     btn.disabled = true;
     try {
-      if ((await Store.count()) >= MAX_ITEMS) throw new Error('full');
-      const id = newId();
-      pendingHighlight = id;
-      let rec, approvedNow = true;
+      if (items.size >= MAX_ITEMS) throw new Error('full');
+      let approvedNow = true;
       if (usePhoto) {
         btn.textContent = 'AI กำลังตรวจรูป…';
         const r = await guestPhoto.check;
         approvedNow = r.status === 'approved';
-        rec = { id, type: 'guest', status: r.status, ai: r.ai, card: guestPhoto.card, pond: guestPhoto.pond, wish, name, createdAt: Date.now() };
+        btn.textContent = 'กำลังส่ง…';
+        pendingHighlight = await Store.addGuestPhoto({ card: guestPhoto.card, pond: guestPhoto.pond }, wish, name, r.status, r.ai);
       } else {
-        rec = { id, type: 'guest', design: chosenDesign, wish, name, createdAt: Date.now() };
+        pendingHighlight = await Store.addGuestDesign(chosenDesign, wish, name);
       }
-      await Store.add(rec);
+      sync();
       try { localStorage.setItem('krathong-last-guest', String(Date.now())); } catch {}
       $('wish').value = ''; $('guestName').value = ''; $('wishCount').textContent = '0';
       if (usePhoto) {
@@ -1009,7 +1034,8 @@
         toast('ลอยกระทงแล้ว ขอให้คำอธิษฐานเป็นจริง');
       }
     } catch (e) {
-      setCreateMsg(e.message === 'full' ? 'แม่น้ำเต็มแล้ว กรุณาลองใหม่ภายหลัง' : 'ลอยกระทงไม่สำเร็จ ลองอีกครั้ง', 'err');
+      console.error(e);
+      setCreateMsg(e.message === 'full' ? 'แม่น้ำเต็มแล้ว กรุณาลองใหม่ภายหลัง' : 'ลอยกระทงไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', 'err');
     } finally {
       btn.disabled = false;
       btn.textContent = 'ลอยกระทง';
@@ -1019,31 +1045,51 @@
   /* ==========================================================
      หลังบ้าน: เข้าสู่ระบบ
      ========================================================== */
-  function isAdmin() { try { return sessionStorage.getItem('krathong-admin') === '1'; } catch { return false; } }
+  let adminOk = false;
+  function isAdmin() { return adminOk; }
   function showAdmin() {
-    const ok = isAdmin();
-    $('loginBox').style.display = ok ? 'none' : 'block';
-    $('adminBox').style.display = ok ? 'block' : 'none';
-    if (ok) renderManage();
+    $('loginBox').style.display = adminOk ? 'none' : 'block';
+    $('adminBox').style.display = adminOk ? 'block' : 'none';
+    if (adminOk) { $('adminEmail').textContent = adminEmail; renderManage(); }
   }
-  // รับได้ทั้งเลขอารบิก เลขไทย และกรณีพิมพ์ตอนแป้นพิมพ์เป็นภาษาไทย (แถวตัวเลขจะได้ ๅ / - ภ ถ ุ ึ ค ต จ)
-  const THAI_KEY_DIGITS = { 'ๅ': '1', '/': '2', '-': '3', 'ภ': '4', 'ถ': '5', 'ุ': '6', 'ึ': '7', 'ค': '8', 'ต': '9', 'จ': '0' };
-  function normalizePin(v) {
-    return v.trim().replace(/[๐-๙]/g, d => String(d.charCodeAt(0) - 0x0E50)).replace(/./g, c => THAI_KEY_DIGITS[c] || c);
+  let adminEmail = '';
+  async function checkAdmin() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { adminOk = false; adminEmail = ''; return false; }
+    const { data, error } = await sb.rpc('krathong_is_admin');
+    adminOk = !error && data === true;
+    adminEmail = session.user.email || '';
+    return adminOk;
   }
+  function setLoginMsg(text) { $('loginMsg').textContent = text; $('loginMsg').className = 'msg err'; }
   $('showPin').addEventListener('change', e => { $('pin').type = e.target.checked ? 'text' : 'password'; });
-  $('loginBtn').addEventListener('click', () => {
-    if (normalizePin($('pin').value) === ADMIN_PIN) {
-      try { sessionStorage.setItem('krathong-admin', '1'); } catch {}
+  $('loginBtn').addEventListener('click', async () => {
+    const email = $('loginEmail').value.trim(), password = $('pin').value;
+    if (!email || !password) return setLoginMsg('กรุณาใส่อีเมลและรหัสผ่าน');
+    const btn = $('loginBtn');
+    btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ…';
+    try {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return setLoginMsg('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      if (!(await checkAdmin())) {
+        await sb.auth.signOut();
+        return setLoginMsg('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู กรุณาติดต่อผู้ดูแลระบบ');
+      }
       $('pin').value = ''; $('loginMsg').textContent = '';
       showAdmin();
-    } else {
-      $('loginMsg').textContent = 'รหัสไม่ถูกต้อง';
-      $('loginMsg').className = 'msg err';
+      sync();
+    } finally {
+      btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
     }
   });
   $('pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
-  $('logoutBtn').addEventListener('click', () => { try { sessionStorage.removeItem('krathong-admin'); } catch {} showAdmin(); });
+  $('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    adminOk = false;
+    showAdmin();
+    for (const it of [...items.values()]) if (it.status === 'pending') removeItem(it.id);
+    renderAll();
+  });
   $('manageFilter').addEventListener('change', renderManage);
 
   /* ==========================================================
@@ -1087,13 +1133,14 @@
     g.drawImage(src, 0, 0, c.width, c.height);
     return new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('encode')), outType, quality));
   }
-  async function saveStudent(edited, room) {
+  async function saveStudent(edited, room, sample) {
     if (!isRoom(room)) throw new Error('กรุณาเลือกห้องเรียนก่อนส่ง');
-    if ((await Store.count()) >= MAX_ITEMS) throw new Error(`ครบ ${MAX_ITEMS} รายการแล้ว กรุณาลบรายการเก่าก่อน`);
+    if (items.size >= MAX_ITEMS) throw new Error(`ครบ ${MAX_ITEMS} รายการแล้ว กรุณาลบรายการเก่าก่อน`);
     const [large, card, pond] = await Promise.all([
       resizeToBlob(edited, SIZES.large, 0.88), resizeToBlob(edited, SIZES.card, 0.85), resizeToBlob(edited, SIZES.pond, 0.82),
     ]);
-    await Store.add({ id: newId(), type: 'student', room, createdAt: Date.now(), large, card, pond, w: edited.width, h: edited.height });
+    await Store.addStudent(room, { large, card, pond }, sample ? { sample: true } : null);
+    sync();
     return { large, card, pond };
   }
 
@@ -1206,10 +1253,10 @@
     try {
       const chosen = $('roomSelect').value;
       if (chosen) {
-        for (let i = 0; i < 6; i++) await saveStudent(sampleDrawing(), chosen);
+        for (let i = 0; i < 6; i++) await saveStudent(sampleDrawing(), chosen, true);
         $('sampleMsg').textContent = `เพิ่มภาพตัวอย่าง 6 ภาพเข้า ${roomLabel(chosen)} แล้ว`;
       } else {
-        for (const r of ROOMS) await saveStudent(sampleDrawing(), r.id);
+        for (const r of ROOMS) await saveStudent(sampleDrawing(), r.id, true);
         $('sampleMsg').textContent = `ยังไม่ได้เลือกห้อง จึงเพิ่มให้ทุกห้อง ห้องละ 1 ภาพ (${ROOMS.length} ภาพ)`;
       }
       $('sampleMsg').className = 'msg ok';
@@ -1217,11 +1264,25 @@
     finally { btn.disabled = false; }
   });
   $('sampleGuestBtn').addEventListener('click', async () => {
-    for (const [wish, name] of SAMPLE_WISHES) {
-      await Store.add({ id: newId(), type: 'guest', design: Math.floor(Math.random() * DESIGNS.length), wish, name, createdAt: Date.now() });
-    }
-    $('sampleMsg').textContent = 'เพิ่มกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบแล้ว';
-    $('sampleMsg').className = 'msg ok';
+    try {
+      for (const [wish, name] of SAMPLE_WISHES) {
+        await Store.addGuestDesign(Math.floor(Math.random() * DESIGNS.length), wish, name, { sample: true });
+      }
+      sync();
+      $('sampleMsg').textContent = 'เพิ่มกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบแล้ว';
+      $('sampleMsg').className = 'msg ok';
+    } catch (e) { $('sampleMsg').textContent = 'เพิ่มไม่สำเร็จ: ' + (e.message || e); $('sampleMsg').className = 'msg err'; }
+  });
+  $('clearSampleBtn').addEventListener('click', async () => {
+    const samples = [...items.values()].filter(it => it.ai && it.ai.sample);
+    if (!samples.length) { $('sampleMsg').textContent = 'ไม่มีข้อมูลทดลอง'; $('sampleMsg').className = 'msg'; return; }
+    if (!confirm(`ลบข้อมูลทดลอง ${samples.length} รายการใช่หรือไม่?`)) return;
+    try {
+      for (const it of samples) await Store.remove(it);
+      sync();
+      $('sampleMsg').textContent = `ลบข้อมูลทดลอง ${samples.length} รายการแล้ว`;
+      $('sampleMsg').className = 'msg ok';
+    } catch (e) { $('sampleMsg').textContent = 'ลบไม่สำเร็จ: ' + (e.message || e); $('sampleMsg').className = 'msg err'; }
   });
 
   /* ==========================================================
@@ -1683,17 +1744,18 @@
   });
   $('musicBtn').addEventListener('click', () => (musicOn ? musicStop() : musicStart()));
 
-  if (channel) channel.onmessage = () => sync();
-  window.addEventListener('storage', e => { if (e.key === 'krathong-ping') sync(); });
+  sb.channel('krathong-items')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'krathong_items' }, () => sync())
+    .subscribe();
+  sb.auth.onAuthStateChange(() => { checkAdmin().then(() => { showAdmin(); sync(); }); });
   window.addEventListener('online', sync);
-  setInterval(sync, 4000);
+  setInterval(sync, 15000);   // สำรองกรณีพลาดการแจ้งเตือนจาก Realtime
   setInterval(() => { if (location.hash.startsWith('#gallery')) renderGallery(); }, 10000);
 
   document.querySelectorAll('img[data-logo]').forEach(i => { i.src = $('logoSrc').src; });
   renderDesigns();
   renderRooms();
-  route();
-  sync();
+  checkAdmin().finally(() => { route(); sync(); });
   requestAnimationFrame(now => { last = now; frame(now); });
 })();
 </script>
