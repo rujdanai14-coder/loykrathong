@@ -206,16 +206,6 @@
     border-radius: 50%; font-size: 20px; background: rgba(20,10,60,.75); color: #fff; border: 1px solid rgba(255,215,130,.6);
   }
   #musicBtn.on { box-shadow: 0 0 16px rgba(255,200,90,.6); }
-  #musicPanel {
-    position: fixed; right: 12px; bottom: 12px; z-index: 25; width: 252px; padding: 6px;
-    background: rgba(20,10,60,.88); border: 1px solid rgba(255,215,130,.5); border-radius: 12px; color: #fff; display: none;
-  }
-  #musicPanel.show { display: block; }
-  #musicPanel .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 4px 6px; font-size: 13px; }
-  #musicPanel .bar button { font-size: 12px; padding: 4px 10px; background: transparent; color: #fff; border-color: rgba(255,215,130,.5); }
-  #musicPanel .player { width: 240px; height: 200px; border-radius: 8px; overflow: hidden; background: #000; }
-  #musicPanel iframe { width: 100%; height: 100%; display: block; }
-  @media (max-width: 700px) { #musicPanel { width: 212px; } #musicPanel .player { width: 200px; } }
 
   #lightbox { position: fixed; inset: 0; background: rgba(10,20,26,.9); z-index: 20; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
   #lightbox.show { display: flex; }
@@ -421,10 +411,7 @@
 <div id="lightbox" role="dialog" aria-label="ภาพขนาดใหญ่"><img alt="ภาพวาดกระทง"></div>
 <div class="toast" id="toast" role="status"></div>
 <button type="button" id="musicBtn" aria-label="เปิดเพลงพื้นหลัง" title="เปิดเพลงพื้นหลัง">🔇</button>
-<div id="musicPanel" role="region" aria-label="เครื่องเล่นเพลงพื้นหลัง">
-  <div class="bar"><span>🎵 เพลงพื้นหลัง</span><button type="button" id="musicClose">ปิดเพลง</button></div>
-  <div class="player"><div id="ytPlayer"></div></div>
-</div>
+<audio id="bgm" preload="none" loop></audio>
 
 <script>
 (() => {
@@ -440,8 +427,8 @@
   const MAX_FILE_MB = 25;
   const SIZES = { large: 2400, card: 1200, pond: 600 };
   const GUEST_COOLDOWN_SEC = 20;
-  const MUSIC_VIDEO_ID = 'yLh17bCkPr8';   // รหัสวิดีโอ YouTube ที่ใช้เป็นเพลงพื้นหลัง
-  const MUSIC_VOLUME = 40;                  // ความดัง 0–100
+  const MUSIC_FILE = 'music.m4a';   // ไฟล์เพลงพื้นหลัง วางไว้โฟลเดอร์เดียวกับ index.html
+  const MUSIC_VOLUME = 40;          // ความดัง 0–100
   // AI ตรวจรูปจากผู้ร่วมกิจกรรม: พบคน/ใบหน้า → รอครูอนุมัติ, ไม่พบ → ลอยได้ทันที
   const AI_CHECK = {
     enabled: true,
@@ -1664,24 +1651,11 @@
   window.addEventListener('hashchange', route);
 
   /* ==========================================================
-     เพลงพื้นหลังผ่านเครื่องเล่น YouTube (ต้องแสดงเครื่องเล่นไว้ตามเงื่อนไขของ YouTube)
-     เบราว์เซอร์ไม่อนุญาตให้เล่นเสียงเองจนกว่าผู้ใช้จะกดปุ่ม
+     เพลงพื้นหลังจากไฟล์ (เบราว์เซอร์ไม่อนุญาตให้เล่นเสียงเองจนกว่าผู้ใช้จะกดปุ่ม)
      ========================================================== */
-  let yt = null, ytLoading = null, musicOn = false;
-  function loadYouTubeApi() {
-    if (window.YT && window.YT.Player) return Promise.resolve();
-    if (ytLoading) return ytLoading;
-    ytLoading = new Promise((resolve, reject) => {
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(); };
-      const sc = document.createElement('script');
-      sc.src = 'https://www.youtube.com/iframe_api';
-      sc.onerror = () => { ytLoading = null; reject(new Error('load')); };
-      document.head.append(sc);
-      setTimeout(() => reject(new Error('timeout')), 15000);
-    });
-    return ytLoading;
-  }
+  const bgm = $('bgm');
+  let musicOn = false;
+  bgm.volume = MUSIC_VOLUME / 100;
   function setMusicUI(on) {
     musicOn = on;
     const btn = $('musicBtn');
@@ -1689,39 +1663,25 @@
     btn.classList.toggle('on', on);
     btn.title = on ? 'ปิดเพลงพื้นหลัง' : 'เปิดเพลงพื้นหลัง';
     btn.setAttribute('aria-label', btn.title);
-    $('musicPanel').classList.toggle('show', on);
   }
   async function musicStart() {
-    if (location.protocol === 'file:') {
-      toast('เพลงจาก YouTube เล่นได้เมื่อเปิดเว็บผ่าน http/https เช่น GitHub Pages');
-      return;
-    }
+    if (!bgm.src) bgm.src = MUSIC_FILE;
     setMusicUI(true);
-    try { await loadYouTubeApi(); }
-    catch { toast('โหลดเครื่องเล่น YouTube ไม่ได้ ตรวจการเชื่อมต่ออินเทอร์เน็ต'); setMusicUI(false); return; }
-    if (yt) { try { yt.playVideo(); } catch {} return; }
-    yt = new YT.Player('ytPlayer', {
-      width: '100%', height: '100%', videoId: MUSIC_VIDEO_ID,
-      playerVars: { autoplay: 1, loop: 1, playlist: MUSIC_VIDEO_ID, playsinline: 1, rel: 0 },
-      events: {
-        onReady: e => { e.target.setVolume(MUSIC_VOLUME); if (musicOn) e.target.playVideo(); },
-        onStateChange: e => {
-          if (e.data === YT.PlayerState.PLAYING && !musicOn) setMusicUI(true);
-        },
-        onError: e => {
-          toast(e.data === 101 || e.data === 150 ? 'เจ้าของวิดีโอไม่อนุญาตให้เล่นบนเว็บอื่น ลองเปลี่ยนวิดีโอ'
-            : e.data === 153 ? 'YouTube ต้องการให้เปิดเว็บผ่าน http/https' : 'เล่นเพลงไม่ได้ (รหัส ' + e.data + ')');
-          musicStop();
-        },
-      },
-    });
+    try {
+      await bgm.play();
+    } catch (e) {
+      setMusicUI(false);
+      toast(e.name === 'NotAllowedError' ? 'กดปุ่มอีกครั้งเพื่อเปิดเพลง' : 'เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด ' + MUSIC_FILE + ' ไว้คู่กับ index.html');
+    }
   }
   function musicStop() {
     setMusicUI(false);
-    try { if (yt && yt.pauseVideo) yt.pauseVideo(); } catch {}
+    bgm.pause();
   }
+  bgm.addEventListener('error', () => {
+    if (musicOn) { setMusicUI(false); toast('เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด ' + MUSIC_FILE + ' ไว้คู่กับ index.html'); }
+  });
   $('musicBtn').addEventListener('click', () => (musicOn ? musicStop() : musicStart()));
-  $('musicClose').addEventListener('click', musicStop);
 
   if (channel) channel.onmessage = () => sync();
   window.addEventListener('storage', e => { if (e.key === 'krathong-ping') sync(); });
