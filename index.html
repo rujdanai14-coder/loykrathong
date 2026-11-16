@@ -695,7 +695,8 @@
      ========================================================== */
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const publicUrl = path => path ? sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null;
-  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+    : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
   const extOf = blob => (blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg');
 
   function normalize(row) {
@@ -724,20 +725,21 @@
       if (error) throw error;
       return data.map(normalize);
     },
+    // สร้าง id ฝั่งเว็บ และไม่ขอข้อมูลแถวกลับมา เพราะคนทั่วไปไม่มีสิทธิ์อ่านแถวที่ "รอตรวจ"
     async addGuestDesign(design, wish, name, ai) {
-      const { data, error } = await sb.from('krathong_items')
-        .insert({ type: 'guest', room: 'guest', design, wish, name: name || null, status: 'approved', ai: ai || null })
-        .select('id').single();
+      const id = uuid();
+      const { error } = await sb.from('krathong_items')
+        .insert({ id, type: 'guest', room: 'guest', design, wish, name: name || null, status: 'approved', ai: ai || null });
       if (error) throw error;
-      return data.id;
+      return id;
     },
     async addGuestPhoto(blobs, wish, name, status, ai) {
       const paths = await uploadBlobs('guest', blobs);
-      const { data, error } = await sb.from('krathong_items')
-        .insert({ type: 'guest', room: 'guest', wish, name: name || null, status, ai, ...paths })
-        .select('id').single();
+      const id = uuid();
+      const { error } = await sb.from('krathong_items')
+        .insert({ id, type: 'guest', room: 'guest', wish, name: name || null, status, ai, ...paths });
       if (error) throw error;
-      return data.id;
+      return id;
     },
     async addStudent(room, blobs, ai) {
       const paths = await uploadBlobs('student/' + room, blobs);
