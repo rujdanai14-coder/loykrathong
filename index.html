@@ -330,12 +330,13 @@
   <div class="wrap">
     <div id="loginBox" class="panel login">
       <h2>เข้าสู่ระบบสำหรับครู</h2>
-      <p class="info">ใช้อีเมลและรหัสผ่านบัญชีครูที่ผู้ดูแลระบบสร้างให้</p>
-      <input type="text" id="loginEmail" inputmode="email" placeholder="อีเมล" autocomplete="username">
-      <input type="password" id="pin" placeholder="รหัสผ่าน" autocomplete="current-password">
+      <p class="info" id="loginHint">ใส่รหัส PIN ของครู</p>
+      <input type="text" id="loginEmail" inputmode="email" placeholder="อีเมล" autocomplete="username" style="display:none">
+      <input type="password" id="pin" inputmode="numeric" placeholder="รหัส PIN" autocomplete="current-password">
       <label class="info" style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><input type="checkbox" id="showPin"> แสดงรหัส</label>
       <button type="button" class="primary" id="loginBtn">เข้าสู่ระบบ</button>
       <p class="msg" id="loginMsg"></p>
+      <a href="#admin" class="info" id="useEmailLink">เข้าด้วยอีเมลแทน</a>
     </div>
 
     <div id="adminBox" style="display:none">
@@ -427,6 +428,9 @@
   const SUPABASE_URL = 'https://engtqyzpyvicpfvwvqvj.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZ3RxeXpweXZpY3Bmdnd2cXZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTUyNTgsImV4cCI6MjEwNzQ3MTI1OH0.ljyHbumJukOv3LGI5YY_DmPLpIxKFgmroUDO1gz_x-Y';
   const BUCKET = 'krathong';
+  // บัญชีครูกลางสำหรับเข้าด้วย PIN (รหัสผ่านจริงของบัญชีนี้คือ PIN_PREFIX + PIN)
+  const TEACHER_EMAIL = 'krathong-teacher@example.com';
+  const PIN_PREFIX = 'krathong-';
   const MAX_ITEMS = 1500;
   const MAX_FILE_MB = 25;
   const SIZES = { large: 2400, card: 1200, pond: 600 };
@@ -1063,14 +1067,28 @@
   }
   function setLoginMsg(text) { $('loginMsg').textContent = text; $('loginMsg').className = 'msg err'; }
   $('showPin').addEventListener('change', e => { $('pin').type = e.target.checked ? 'text' : 'password'; });
+  // รับได้ทั้งเลขอารบิก เลขไทย และกรณีพิมพ์ตอนแป้นพิมพ์เป็นภาษาไทย
+  const THAI_KEY_DIGITS = { 'ๅ': '1', '/': '2', '-': '3', 'ภ': '4', 'ถ': '5', 'ุ': '6', 'ึ': '7', 'ค': '8', 'ต': '9', 'จ': '0' };
+  const normalizePin = v => v.trim().replace(/[๐-๙]/g, d => String(d.charCodeAt(0) - 0x0E50)).replace(/./g, c => THAI_KEY_DIGITS[c] || c);
+  let emailMode = false;
+  $('useEmailLink').addEventListener('click', e => {
+    e.preventDefault();
+    emailMode = !emailMode;
+    $('loginEmail').style.display = emailMode ? '' : 'none';
+    $('pin').placeholder = emailMode ? 'รหัสผ่าน' : 'รหัส PIN';
+    $('pin').inputMode = emailMode ? 'text' : 'numeric';
+    $('loginHint').textContent = emailMode ? 'ใช้อีเมลและรหัสผ่านบัญชีครู' : 'ใส่รหัส PIN ของครู';
+    $('useEmailLink').textContent = emailMode ? 'เข้าด้วยรหัส PIN แทน' : 'เข้าด้วยอีเมลแทน';
+  });
   $('loginBtn').addEventListener('click', async () => {
-    const email = $('loginEmail').value.trim(), password = $('pin').value;
-    if (!email || !password) return setLoginMsg('กรุณาใส่อีเมลและรหัสผ่าน');
+    const email = emailMode ? $('loginEmail').value.trim() : TEACHER_EMAIL;
+    const password = emailMode ? $('pin').value : PIN_PREFIX + normalizePin($('pin').value);
+    if (!email || !$('pin').value.trim()) return setLoginMsg(emailMode ? 'กรุณาใส่อีเมลและรหัสผ่าน' : 'กรุณาใส่รหัส PIN');
     const btn = $('loginBtn');
     btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ…';
     try {
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) return setLoginMsg('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      if (error) return setLoginMsg(emailMode ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' : 'รหัส PIN ไม่ถูกต้อง');
       if (!(await checkAdmin())) {
         await sb.auth.signOut();
         return setLoginMsg('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู กรุณาติดต่อผู้ดูแลระบบ');
