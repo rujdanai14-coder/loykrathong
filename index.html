@@ -128,6 +128,8 @@
     .home-title .prog { font-size: 11px; }
     #pondBrand img { height: 46px; }
     .pond-tools { top: auto; bottom: 86px; right: 50%; transform: translateX(50%); max-width: 100%; }
+    .home-actions { bottom: 72px; }
+    .teacher-link { bottom: 26px; }
   }
 
   /* ---------- หน้าเลือกห้อง ---------- */
@@ -206,6 +208,15 @@
     border-radius: 50%; font-size: 20px; background: rgba(20,10,60,.75); color: #fff; border: 1px solid rgba(255,215,130,.6);
   }
   #musicBtn.on { box-shadow: 0 0 16px rgba(255,200,90,.6); }
+  #langSwitch {
+    position: fixed; left: 70px; bottom: 18px; z-index: 25; display: flex; gap: 2px; padding: 3px;
+    background: rgba(20,10,60,.75); border: 1px solid rgba(255,215,130,.6); border-radius: 999px;
+  }
+  #langSwitch button {
+    font-size: 13px; padding: 5px 10px; border: 0; border-radius: 999px; background: transparent; color: #e9e3ff; line-height: 1;
+  }
+  #langSwitch button.on { background: #ffd36b; color: #3a2300; font-weight: 600; }
+  body.lang-zh { --thai: "Sarabun", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans Thai", system-ui, sans-serif; }
 
   #lightbox { position: fixed; inset: 0; background: rgba(10,20,26,.9); z-index: 20; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
   #lightbox.show { display: flex; }
@@ -413,6 +424,11 @@
 
 <div id="lightbox" role="dialog" aria-label="ภาพขนาดใหญ่"><img alt="ภาพวาดกระทง"></div>
 <div class="toast" id="toast" role="status"></div>
+<div id="langSwitch" class="no-i18n" role="group" aria-label="ภาษา">
+  <button type="button" data-lang="th">ไทย</button>
+  <button type="button" data-lang="en">EN</button>
+  <button type="button" data-lang="zh">中文</button>
+</div>
 <button type="button" id="musicBtn" aria-label="เปิดเพลงพื้นหลัง" title="เปิดเพลงพื้นหลัง">🔇</button>
 <audio id="bgm" preload="none" loop></audio>
 
@@ -446,6 +462,214 @@
   };
   const MP_VERSION = '0.10.14';
 
+  /* ==========================================================
+     ภาษา (ไทย / English / 中文) — คีย์คือข้อความภาษาไทย
+     ========================================================== */
+  const I18N = {
+    '1. เลือกกระทง': ['1. Choose a krathong', '1. 选择水灯'],
+    '2. เขียนคำอธิษฐาน': ['2. Write your wish', '2. 写下你的心愿'],
+    'กระทง': ['krathongs', '盏水灯'],
+    'กลับหน้าแรก': ['Back to home', '返回首页'],
+    'ขอให้ทุกคนมีความสุข สุขภาพแข็งแรง': ['May everyone be happy and healthy', '愿大家幸福安康'],
+    'ข้อความและชื่อจะแสดงต่อสาธารณะ กรุณาอย่าใส่ข้อมูลส่วนตัว เช่น ชื่อ-นามสกุลจริง เบอร์โทร ที่อยู่ หรือลิงก์ ครูสามารถลบข้อความที่ไม่เหมาะสมได้ ถ้าใช้รูปของตัวเอง AI จะตรวจรูปก่อน รูปที่มีคนหรือใบหน้าจะลอยหลังครูอนุมัติ': ['Your wish and name will be shown publicly. Please do not include personal information such as your full name, phone number, address or links. Teachers can remove inappropriate messages. If you use your own photo, AI checks it first; photos with people or faces will float after a teacher approves them.', '心愿和名字会公开显示。请勿填写个人信息，例如真实姓名、电话、地址或链接。老师可以删除不当内容。如使用自己的照片，AI 会先检查；有人物或人脸的照片需老师批准后才会放入河中。'],
+    'ข้อมูลทดลอง': ['Test data', '测试数据'],
+    'จัดการกระทงทั้งหมด': ['Manage all krathongs', '管理所有水灯'],
+    'ชื่อที่ให้แสดง (ไม่ใส่ก็ได้)': ['Display name (optional)', '显示名称（可不填）'],
+    'ดูกระทงรายห้อง': ['View by class', '按班级查看'],
+    'ดูรายห้อง': ['By class', '按班级'],
+    'ตราโรงเรียนสารสาสน์วิเทศศึกษา': ['Sarasas Witaed Suksa School logo', '学校校徽'],
+    'ตัดขอบภาพ': ['Trim edges', '裁剪边缘'],
+    'ตัวอย่างภาพก่อนส่ง': ['Preview before sending', '发送前预览'],
+    'ถ่ายเฉพาะภาพวาด ไม่มีใบหน้า ชื่อ หรือข้อมูลระบุตัวนักเรียน ระบบไม่แสดงชื่อเจ้าของผลงาน': ['Photograph only the drawing, with no faces, names or anything that identifies the student. Artists’ names are never shown.', '只拍摄画作，不要有人脸、姓名或可识别学生身份的信息。系统不会显示作者姓名。'],
+    'ทั้งหมด': ['All', '全部'],
+    'ทุกห้อง': ['All classes', '所有班级'],
+    'ผลงานกระทงของนักเรียน': ['Students’ krathong artwork', '学生水灯作品'],
+    'ผลงานนักเรียน': ['Student artwork', '学生作品'],
+    'ผลงานนักเรียนทุกห้อง': ['Student artwork (all classes)', '学生作品（所有班级）'],
+    'ผู้ร่วมกิจกรรมทั้งหมด': ['All visitors', '所有参与者'],
+    'ภาพขนาดใหญ่': ['Large image', '大图'],
+    'ภาพวาดกระทง': ['Krathong drawing', '水灯画作'],
+    'ยกเลิก': ['Cancel', '取消'],
+    'ยืนยันว่าเป็นรูปกระทงเท่านั้น ไม่มีใบหน้า ชื่อ หรือข้อมูลส่วนตัวของใคร และฉันมีสิทธิ์ใช้รูปนี้': ['I confirm this photo shows only a krathong, with no faces, names or personal information, and that I have the right to use it', '我确认照片中只有水灯，没有人脸、姓名或个人信息，并且我有权使用这张照片'],
+    'รหัส PIN': ['PIN', 'PIN 码'],
+    'รอตรวจ (รูปจากผู้ร่วมกิจกรรม)': ['Awaiting review (visitor photos)', '待审核（参与者照片）'],
+    'ระบบหลังบ้านสำหรับครู': ['Teacher dashboard', '教师后台'],
+    'รูปที่ AI อนุมัติอัตโนมัติ': ['Photos auto-approved by AI', 'AI 自动批准的照片'],
+    'ลบข้อมูลทดลองทั้งหมด': ['Delete all test data', '删除所有测试数据'],
+    'ลอยกระทง': ['Float krathong', '放水灯'],
+    'ลอยกระทงของคุณ': ['Float your krathong', '放你的水灯'],
+    'ลอยกระทงออนไลน์': ['Online Loy Krathong', '在线水灯节'],
+    'ลอยไปแล้ว': ['Floated', '已放'],
+    'สำหรับครู': ['For teachers', '教师专区'],
+    'ส่งภาพ': ['Send photo', '发送照片'],
+    'ส่งภาพวาดกระทงของนักเรียน': ['Send students’ krathong drawings', '上传学生水灯画作'],
+    'หน้าแรก': ['Home', '首页'],
+    'ห้องเรียน': ['Class', '班级'],
+    'ออกจากระบบ': ['Sign out', '退出登录'],
+    'อีเมล': ['Email', '邮箱'],
+    'เข้าด้วยอีเมลแทน': ['Sign in with email instead', '改用邮箱登录'],
+    'เข้าด้วยรหัส PIN แทน': ['Sign in with PIN instead', '改用 PIN 码登录'],
+    'เข้าสู่ระบบ': ['Sign in', '登录'],
+    'เข้าสู่ระบบสำหรับครู': ['Teacher sign-in', '教师登录'],
+    'เชื่อมต่อฐานข้อมูล Supabase แล้ว ทุกเครื่องเห็นข้อมูลเดียวกัน การเพิ่ม อนุมัติ และลบจะมีผลกับหน้าจอสาธารณะทันที': ['Connected to Supabase. All devices share the same data; adding, approving and deleting take effect on public screens immediately.', '已连接 Supabase 数据库，所有设备共享同一数据；添加、批准和删除会立即显示在公共屏幕上。'],
+    'เช่น ครอบครัวสุขใจ': ['e.g. The Happy Family', '例如：幸福一家'],
+    'เติมกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบ': ['Add 8 sample visitor krathongs', '添加 8 个示例参与者水灯'],
+    'เติมภาพนักเรียนตัวอย่าง': ['Add sample student drawings', '添加示例学生画作'],
+    'เต็มจอ': ['Full screen', '全屏'],
+    'เปิดอ่างน้ำของแต่ละห้องค้างไว้บนจอในงานได้ หรือดูรวมทั้งหมด': ['Keep each class’s pond open on a screen at the event, or view them all together', '活动时可在屏幕上展示各班的水池，也可查看全部'],
+    'เปิดเพลงพื้นหลัง': ['Play background music', '播放背景音乐'],
+    'ปิดเพลงพื้นหลัง': ['Stop background music', '关闭背景音乐'],
+    'เลือกกระทง เขียนคำอธิษฐาน แล้วปล่อยลงแม่น้ำหน้าโรงเรียน': ['Choose a krathong, write a wish, and float it on the river in front of the school', '选择水灯，写下心愿，让它漂在学校前的河上'],
+    'เลือกดูกระทง': ['Browse krathongs', '浏览水灯'],
+    'เลือกห้อง': ['Choose class', '选择班级'],
+    'แม่น้ำยามค่ำคืนหน้าอาคารเรียน มีกระทงลอยอยู่': ['The river at night in front of the school, with krathongs floating', '学校前夜晚的河面，漂着水灯'],
+    'แสดงรหัส': ['Show PIN', '显示密码'],
+    'แสดงห้อง': ['Show class', '显示班级'],
+    'ใช้ทดสอบหน้าจอก่อนวันงาน ข้อมูลจะเขียนลงฐานข้อมูลจริงและทุกเครื่องจะเห็น กดลบข้อมูลทดลองทั้งหมดก่อนเปิดงานจริง': ['For testing screens before the event. Data is written to the real database and every device will see it. Delete all test data before the event starts.', '用于活动前测试屏幕。数据会写入正式数据库，所有设备都能看到。活动开始前请删除所有测试数据。'],
+    'ใส่รหัส PIN ของครู': ['Enter the teacher PIN', '请输入教师 PIN 码'],
+    'ใช้อีเมลและรหัสผ่านบัญชีครู': ['Use the teacher account email and password', '使用教师账号邮箱和密码'],
+    '— เลือกห้อง —': ['— Choose class —', '— 选择班级 —'],
+    '⟲ หมุนซ้าย': ['⟲ Rotate left', '⟲ 向左旋转'],
+    '⟳ หมุนขวา': ['⟳ Rotate right', '⟳ 向右旋转'],
+    '📷 ถ่ายภาพ': ['📷 Take photo', '📷 拍照'],
+    '🖼️ เลือกรูปจากเครื่อง': ['🖼️ Choose from device', '🖼️ 从设备选择'],
+    ' (ภาพค่อนข้างเล็ก อาจไม่คมเมื่อฉายเต็มจอ)': [' (image is small and may look blurry full screen)', '（图片较小，全屏时可能不清晰）'],
+    ' · อนุมัติอัตโนมัติ': [' · auto-approved', ' · 已自动批准'],
+    'เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด {file} ไว้คู่กับ index.html': ['Can’t open the music file. Check that {file} is uploaded next to index.html', '无法打开音乐文件，请确认 {file} 已与 index.html 放在一起'],
+    '{lv} ห้อง {sec}': ['{lv} Room {sec}', '{lv} {sec} 班'],
+    '{room} · กระทง {n} ใบ': ['{room} · {n} krathongs', '{room} · {n} 盏水灯'],
+    '{where}: {n} ภาพ · ภาพใหม่จะขึ้นอัตโนมัติ แตะภาพเพื่อดูเต็มจอ': ['{where}: {n} images · New ones appear automatically. Tap an image to view it full screen', '{where}：{n} 张 · 新作品会自动出现，点击图片可全屏查看'],
+    'ยังไม่มีผลงาน': ['No artwork yet', '暂无作品'],
+    'ไม่มีรายการ': ['No items', '没有项目'],
+    '🤖 AI กำลังตรวจรูป…': ['🤖 AI is checking the photo…', '🤖 AI 正在检查照片…'],
+    'AI กำลังตรวจรูป…': ['AI is checking…', 'AI 正在检查…'],
+    'AI ตรวจรูปไม่สำเร็จ กระทงจะลอยหลังครูตรวจ': ['AI couldn’t check the photo. Your krathong will float after a teacher reviews it', 'AI 检查失败，水灯将在老师审核后放入河中'],
+    'AI ตรวจไม่สำเร็จ': ['AI check failed', 'AI 检查失败'],
+    'AI พบคนหรือใบหน้าในรูป กระทงจะลอยหลังครูอนุมัติ': ['AI found a person or face. Your krathong will float after a teacher approves it', 'AI 发现照片中有人或人脸，水灯将在老师批准后放入河中'],
+    '✓ AI ไม่พบคนในรูป กระทงลอยได้ทันที': ['✓ No person found. Your krathong can float right away', '✓ 未发现人物，水灯可立即放出'],
+    'กดปุ่มอีกครั้งเพื่อเปิดเพลง': ['Tap the button again to play music', '再按一次按钮播放音乐'],
+    'กระทง {n} ใบ': ['{n} krathongs', '{n} 盏水灯'],
+    'กรุณาติ๊กยืนยันเรื่องรูปก่อน': ['Please tick the photo confirmation first', '请先勾选照片确认'],
+    'กรุณาเขียนคำอธิษฐาน': ['Please write a wish', '请写下心愿'],
+    'กรุณาเลือกกระทงหรืออัปโหลดรูปก่อน': ['Please choose a krathong or upload a photo first', '请先选择水灯或上传照片'],
+    'กรุณาเลือกรูปก่อน': ['Please choose a photo first', '请先选择照片'],
+    'กรุณาเลือกห้องเรียนก่อนส่ง': ['Please choose a class before sending', '发送前请选择班级'],
+    'กรุณาเลือกไฟล์รูปภาพ': ['Please choose an image file', '请选择图片文件'],
+    'กรุณาใส่รหัส PIN': ['Please enter the PIN', '请输入 PIN 码'],
+    'กรุณาใส่อีเมลและรหัสผ่าน': ['Please enter email and password', '请输入邮箱和密码'],
+    'กรุณาไม่ใส่ลิงก์': ['Please don’t include links', '请勿填写链接'],
+    'กรุณาไม่ใส่อีเมลหรือบัญชีโซเชียล': ['Please don’t include emails or social media accounts', '请勿填写邮箱或社交账号'],
+    'กรุณาไม่ใส่เบอร์โทรหรือตัวเลขยาว': ['Please don’t include phone numbers or long numbers', '请勿填写电话号码或长串数字'],
+    'กำลังส่ง…': ['Sending…', '正在发送…'],
+    'กำลังเข้าสู่ระบบ…': ['Signing in…', '正在登录…'],
+    'กำลังเตรียมรูป…': ['Preparing photo…', '正在准备照片…'],
+    'ขนาดหลังแก้ไข {w}×{h} พิกเซล{note}': ['Size after editing: {w}×{h} px{note}', '编辑后尺寸：{w}×{h} 像素{note}'],
+    'ข้อความมีคำที่ไม่เหมาะสม': ['Your message contains inappropriate words', '内容含有不当词语'],
+    'ครบ {max} รายการแล้ว กรุณาลบรายการเก่าก่อน': ['Limit of {max} items reached. Please delete older items first', '已达 {max} 项上限，请先删除旧项目'],
+    'ดาวเรือง': ['Marigold', '万寿菊'],
+    'บัวขาว': ['White lotus', '白莲'],
+    'บัวชมพู': ['Pink lotus', '粉莲'],
+    'ม่วงกล้วยไม้': ['Orchid purple', '兰花紫'],
+    'ฟ้าใส': ['Sky blue', '天蓝'],
+    'ส้มทอง': ['Golden orange', '金橙'],
+    'บัญชีนี้ยังไม่ได้รับสิทธิ์ครู กรุณาติดต่อผู้ดูแลระบบ': ['This account doesn’t have teacher access. Please contact the administrator', '此账号没有教师权限，请联系管理员'],
+    'อนุบาล': ['Kindergarten', '幼儿园'],
+    'ประถม (Year 1–6)': ['Primary (Year 1–6)', '小学（Year 1–6）'],
+    'มัธยม (Year 7–11)': ['Secondary (Year 7–11)', '中学（Year 7–11）'],
+    'ปิด AI ไว้': ['AI is off', 'AI 已关闭'],
+    'ผู้ร่วมกิจกรรม': ['Visitors', '参与者'],
+    'พบคนหรือใบหน้า ({p}%)': ['Person or face found ({p}%)', '发现人或人脸（{p}%）'],
+    'ภาพวาดนักเรียน': ['Student drawing', '学生画作'],
+    'มีรูป': ['Has photo', '含照片'],
+    'ยังไม่มีกระทง มาร่วมลอยเป็นคนแรกกัน': ['No krathongs yet. Be the first to float one!', '还没有水灯，快来放第一盏吧！'],
+    'ยังไม่ได้เลือกห้อง จึงเพิ่มให้ทุกห้อง ห้องละ 1 ภาพ ({n} ภาพ)': ['No class selected, so 1 image was added to every class ({n} images)', '未选择班级，已为每个班级添加 1 张（共 {n} 张）'],
+    'รวมทั้งหมด': ['All together', '全部合并'],
+    'รหัส PIN ไม่ถูกต้อง': ['Incorrect PIN', 'PIN 码错误'],
+    'รหัสผ่าน': ['Password', '密码'],
+    'รอตรวจ {n}': ['{n} awaiting review', '待审核 {n}'],
+    'รอตรวจรูป': ['Awaiting photo review', '照片待审核'],
+    'รอภาพกระทงจากครู': ['Waiting for krathong drawings from teachers', '等待老师上传水灯画作'],
+    'รายห้อง': ['By class', '按班级'],
+    'ลบ': ['Delete', '删除'],
+    'ลบข้อมูลทดลอง {n} รายการแล้ว': ['Deleted {n} test items', '已删除 {n} 项测试数据'],
+    'ลบข้อมูลทดลอง {n} รายการใช่หรือไม่?': ['Delete {n} test items?', '确定删除 {n} 项测试数据吗？'],
+    'ลบรายการนี้ออกจากทุกหน้าจอใช่หรือไม่?': ['Remove this item from every screen?', '确定要从所有屏幕删除此项吗？'],
+    'ลบแล้ว': ['Deleted', '已删除'],
+    'ลบไม่สำเร็จ: ': ['Delete failed: ', '删除失败：'],
+    'ลอยกระทงแล้ว ขอให้คำอธิษฐานเป็นจริง': ['Your krathong is floating. May your wish come true!', '水灯已放出，愿你心想事成！'],
+    'ลอยกระทงได้อีกครั้งในอีก {s} วินาที': ['You can float another krathong in {s} seconds', '{s} 秒后可以再放一盏'],
+    'ลอยกระทงไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง': ['Couldn’t float your krathong. Check your internet and try again', '放水灯失败，请检查网络后重试'],
+    'ส่งกระทงแล้ว กระทงของคุณจะลอยขึ้นแม่น้ำเมื่อครูตรวจรูปเรียบร้อย': ['Sent! Your krathong will float once a teacher has reviewed the photo', '已发送！老师审核照片后，你的水灯就会放入河中'],
+    'ส่งภาพเข้า {room} แล้ว (ภาพใหญ่ {a} KB · การ์ด {b} KB · อ่างน้ำ {c} KB)': ['Sent to {room} (large {a} KB · card {b} KB · pond {c} KB)', '已发送到 {room}（大图 {a} KB · 卡片 {b} KB · 水池 {c} KB）'],
+    'ส่งภาพไม่สำเร็จ ลองอีกครั้ง': ['Couldn’t send the photo. Try again', '发送失败，请重试'],
+    'ส่งเมื่อ {time} น.': ['Sent at {time}', '{time} 发送'],
+    'อนุมัติ': ['Approve', '批准'],
+    'อนุมัติแล้ว กระทงขึ้นแม่น้ำ': ['Approved. The krathong is on the river', '已批准，水灯已放入河中'],
+    'อนุมัติไม่สำเร็จ: ': ['Approval failed: ', '批准失败：'],
+    'อัปโหลดรูป': ['Upload photo', '上传照片'],
+    'อีเมลหรือรหัสผ่านไม่ถูกต้อง': ['Incorrect email or password', '邮箱或密码错误'],
+    'เชื่อมต่อฐานข้อมูลไม่ได้ กำลังลองใหม่…': ['Can’t reach the database. Retrying…', '无法连接数据库，正在重试…'],
+    'เปิดรูปนี้ไม่ได้ ถ้าเป็นไฟล์ HEIC ให้ตั้งกล้องเป็น JPEG หรือแปลงไฟล์ก่อน': ['Can’t open this image. If it’s a HEIC file, set your camera to JPEG or convert it first', '无法打开此图片。如为 HEIC 格式，请将相机设置为 JPEG 或先转换格式'],
+    'เพิ่มกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบแล้ว': ['Added 8 sample visitor krathongs', '已添加 8 个示例参与者水灯'],
+    'เพิ่มภาพตัวอย่าง 6 ภาพเข้า {room} แล้ว': ['Added 6 sample images to {room}', '已向 {room} 添加 6 张示例图片'],
+    'เพิ่มไม่สำเร็จ: ': ['Add failed: ', '添加失败：'],
+    'แม่น้ำเต็มแล้ว กรุณาลองใหม่ภายหลัง': ['The river is full. Please try again later', '河面已满，请稍后再试'],
+    'แสดง {n} รายการ จากทั้งหมด {total}/{max}': ['Showing {n} of {total}/{max} items', '显示 {n} 项，共 {total}/{max} 项'],
+    'ใช้รูปกระทงของฉัน': ['Use my krathong photo', '使用我的水灯照片'],
+    'ใช้รูปของฉัน': ['Use my photo', '使用我的照片'],
+    'ใหม่': ['New', '新'],
+    'ไฟล์ใหญ่เกิน {mb} MB': ['File is larger than {mb} MB', '文件超过 {mb} MB'],
+    'ไม่พบคนในรูป': ['No person found', '未发现人物'],
+    'ไม่มีข้อมูลทดลอง': ['No test data', '没有测试数据'],
+    'ไม่ระบุห้อง': ['No class', '未指定班级'],
+    'ไม่อนุมัติ (ลบ)': ['Reject (delete)', '不批准（删除）'],
+    'ภาษา': ['Language', '语言'],
+  };
+  const LANGS = ['th', 'en', 'zh'];
+  const LOCALES = { th: 'th-TH', en: 'en-GB', zh: 'zh-CN' };
+  let LANG = (() => {
+    const q = new URLSearchParams(location.search).get('lang');
+    if (LANGS.includes(q)) return q;
+    try { const s = localStorage.getItem('krathong-lang'); if (LANGS.includes(s)) return s; } catch {}
+    return 'th';
+  })();
+  function t(th, vars) {
+    const row = I18N[th];
+    let s = LANG === 'th' || !row ? th : row[LANGS.indexOf(LANG) - 1];
+    if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+    return s;
+  }
+  const ORIG_TEXT = new WeakMap();
+  const I18N_ATTRS = ['placeholder', 'aria-label', 'title', 'alt'];
+  function translateStatic(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => (n.parentElement && !n.parentElement.closest('script, style, .no-i18n') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    let n;
+    while ((n = walker.nextNode())) {
+      let orig = ORIG_TEXT.get(n);
+      if (orig === undefined) {
+        if (!I18N[n.nodeValue.trim()]) continue;
+        orig = n.nodeValue;
+        ORIG_TEXT.set(n, orig);
+      }
+      const key = orig.trim();
+      n.nodeValue = orig.replace(key, t(key));
+    }
+    for (const el of root.querySelectorAll(I18N_ATTRS.map(a => `[${a}]`).join(','))) {
+      for (const a of I18N_ATTRS) {
+        if (!el.hasAttribute(a)) continue;
+        let orig = el.getAttribute('data-i18n-' + a);
+        if (orig === null) {
+          if (!I18N[el.getAttribute(a)]) continue;
+          orig = el.getAttribute(a);
+          el.setAttribute('data-i18n-' + a, orig);
+        }
+        el.setAttribute(a, t(orig));
+      }
+    }
+  }
+
   const AB = ['A', 'B'];
   const LEVELS = [
     { group: 'อนุบาล', levels: [['KG1', AB], ['KG2', AB], ['KG3', AB]] },
@@ -456,13 +680,13 @@
   for (const g of LEVELS) {
     for (const [lv, sections] of g.levels) {
       const base = lv.replace(/\s+/g, '');
-      if (!sections.length) ROOMS.push({ id: base, label: lv, group: g.group });
-      for (const sec of sections) ROOMS.push({ id: base + '-' + sec, label: `${lv} ห้อง ${sec}`, group: g.group });
+      if (!sections.length) ROOMS.push({ id: base, lv, sec: '', group: g.group, get label() { return lv; } });
+      for (const sec of sections) ROOMS.push({ id: base + '-' + sec, lv, sec, group: g.group, get label() { return t('{lv} ห้อง {sec}', { lv, sec }); } });
     }
   }
   const isRoom = id => ROOMS.some(r => r.id === id);
-  const roomLabel = id => id === 'guest' ? 'ผู้ร่วมกิจกรรม' : id === 'all' ? 'รวมทั้งหมด'
-    : (ROOMS.find(r => r.id === id) || {}).label || 'ไม่ระบุห้อง';
+  const roomLabel = id => id === 'guest' ? t('ผู้ร่วมกิจกรรม') : id === 'all' ? t('รวมทั้งหมด')
+    : (ROOMS.find(r => r.id === id) || {}).label || t('ไม่ระบุห้อง');
 
   /* ==========================================================
      ส่วนเก็บข้อมูล (Supabase)
@@ -543,7 +767,7 @@
   let galleryRoom = 'all';
   let pendingHighlight = null;
 
-  const fmtTime = ts => new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const fmtTime = ts => new Date(ts).toLocaleTimeString(LOCALES[LANG], { hour: '2-digit', minute: '2-digit' });
 
   function toast(text) {
     const el = $('toast');
@@ -580,7 +804,7 @@
       syncFailed = false;
     } catch (e) {
       console.error(e);
-      if (!syncFailed) toast('เชื่อมต่อฐานข้อมูลไม่ได้ กำลังลองใหม่…');
+      if (!syncFailed) toast(t('เชื่อมต่อฐานข้อมูลไม่ได้ กำลังลองใหม่…'));
       syncFailed = true;
     } finally {
       syncing = false;
@@ -702,7 +926,7 @@
   function fillRoomSelect(sel) {
     let og = null, last = '';
     for (const r of ROOMS) {
-      if (r.group !== last) { og = document.createElement('optgroup'); og.label = r.group; sel.append(og); last = r.group; }
+      if (r.group !== last) { og = document.createElement('optgroup'); og.label = t(r.group); sel.append(og); last = r.group; }
       const o = document.createElement('option');
       o.value = r.id; o.textContent = r.label;
       og.append(o);
@@ -715,7 +939,7 @@
     a.href = href;
     a.textContent = label;
     const sm = document.createElement('small');
-    sm.textContent = `กระทง ${count} ใบ`;
+    sm.textContent = t('กระทง {n} ใบ', { n: count });
     a.append(sm);
     return a;
   }
@@ -726,13 +950,13 @@
     const top = document.createElement('div');
     top.className = 'room-grid';
     top.append(
-      roomTile('#pond/all', 'รวมทั้งหมด', roomCount('all'), 'special'),
-      roomTile('#pond/guest', 'ผู้ร่วมกิจกรรม', roomCount('guest'), 'guest'),
+      roomTile('#pond/all', t('รวมทั้งหมด'), roomCount('all'), 'special'),
+      roomTile('#pond/guest', t('ผู้ร่วมกิจกรรม'), roomCount('guest'), 'guest'),
     );
     box.append(top);
     for (const g of LEVELS) {
       const h = document.createElement('h3');
-      h.textContent = g.group;
+      h.textContent = t(g.group);
       const grid = document.createElement('div');
       grid.className = 'room-grid';
       for (const r of ROOMS.filter(x => x.group === g.group)) grid.append(roomTile('#pond/' + r.id, r.label, roomCount(r.id)));
@@ -744,25 +968,25 @@
     const box = $('gallery');
     box.replaceChildren();
     const list = sortedItems().filter(it => it.type === 'student' && (galleryRoom === 'all' || it.room === galleryRoom));
-    const where = galleryRoom === 'all' ? 'ทุกห้อง' : roomLabel(galleryRoom);
-    $('galleryCount').textContent = `${where}: ${list.length} ภาพ · ภาพใหม่จะขึ้นอัตโนมัติ แตะภาพเพื่อดูเต็มจอ`;
-    if (!list.length) { box.innerHTML = '<p class="empty">ยังไม่มีผลงาน</p>'; return; }
+    const where = galleryRoom === 'all' ? t('ทุกห้อง') : roomLabel(galleryRoom);
+    $('galleryCount').textContent = t('{where}: {n} ภาพ · ภาพใหม่จะขึ้นอัตโนมัติ แตะภาพเพื่อดูเต็มจอ', { where, n: list.length });
+    if (!list.length) { box.innerHTML = '<p class="empty">' + t('ยังไม่มีผลงาน') + '</p>'; return; }
     const now = Date.now();
     for (const it of list) {
       const card = document.createElement('div');
       const isNew = it.isNewUntil > now;
       card.className = 'card' + (isNew ? ' new' : '');
       const img = document.createElement('img');
-      img.src = it.urls.card; img.alt = 'ภาพวาดกระทง'; img.loading = 'lazy';
+      img.src = it.urls.card; img.alt = t('ภาพวาดกระทง'); img.loading = 'lazy';
       const row = document.createElement('div');
       row.className = 'time';
       const tm = document.createElement('span');
-      tm.textContent = `ส่งเมื่อ ${fmtTime(it.createdAt)} น.`;
+      tm.textContent = t('ส่งเมื่อ {time} น.', { time: fmtTime(it.createdAt) });
       const tag = document.createElement('span');
       tag.className = 'tag'; tag.textContent = roomLabel(it.room);
       row.append(tm, tag);
       card.append(img, row);
-      if (isNew) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = 'ใหม่'; card.append(b); }
+      if (isNew) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = t('ใหม่'); card.append(b); }
       card.addEventListener('click', () => { $('lightbox').querySelector('img').src = it.urls.large; $('lightbox').classList.add('show'); });
       box.append(card);
     }
@@ -778,12 +1002,12 @@
     const pendingN = [...items.values()].filter(it => it.status === 'pending').length;
     const badge = $('pendingBadge');
     badge.style.display = pendingN ? '' : 'none';
-    badge.textContent = `รอตรวจ ${pendingN}`;
+    badge.textContent = t('รอตรวจ {n}', { n: pendingN });
     const list = sortedItems()
       .filter(it => f === 'all' || (f === 'pending' ? it.status === 'pending' : f === 'auto' ? (it.ai && it.ai.result === 'clear') : it.type === f || it.room === f))
       .sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
-    $('manageCount').textContent = `แสดง ${list.length} รายการ จากทั้งหมด ${items.size}/${MAX_ITEMS}`;
-    if (!list.length) { box.innerHTML = '<p class="empty">ไม่มีรายการ</p>'; return; }
+    $('manageCount').textContent = t('แสดง {n} รายการ จากทั้งหมด {total}/{max}', { n: list.length, total: items.size, max: MAX_ITEMS });
+    if (!list.length) { box.innerHTML = '<p class="empty">' + t('ไม่มีรายการ') + '</p>'; return; }
     for (const it of list.slice(0, 200)) {
       const row = document.createElement('div');
       row.className = 'mrow' + (it.status === 'pending' ? ' pending' : '');
@@ -794,40 +1018,44 @@
       const mid = document.createElement('div');
       const text = document.createElement('div');
       text.className = 'wish';
-      text.textContent = it.type === 'guest' ? `“${it.wish}”${it.name ? ' — ' + it.name : ''}` : 'ภาพวาดนักเรียน';
+      text.textContent = it.type === 'guest' ? `“${it.wish}”${it.name ? ' — ' + it.name : ''}` : t('ภาพวาดนักเรียน');
       const meta = document.createElement('div');
       meta.className = 'meta';
       const tag = document.createElement('span');
       tag.className = 'tag' + (it.type === 'guest' ? ' guest' : '');
       tag.textContent = roomLabel(it.room);
       const tm = document.createElement('span');
-      tm.textContent = new Date(it.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
+      tm.textContent = new Date(it.createdAt).toLocaleString(LOCALES[LANG], { dateStyle: 'short', timeStyle: 'short' });
       meta.append(tag, tm);
-      if (it.status === 'pending') { const p = document.createElement('span'); p.className = 'tag pending'; p.textContent = 'รอตรวจรูป'; meta.prepend(p); }
-      else if (it.photo) { const p = document.createElement('span'); p.className = 'tag'; p.textContent = 'มีรูป'; meta.append(p); }
-      if (it.ai) {
+      if (it.status === 'pending') { const p = document.createElement('span'); p.className = 'tag pending'; p.textContent = t('รอตรวจรูป'); meta.prepend(p); }
+      else if (it.photo) { const p = document.createElement('span'); p.className = 'tag'; p.textContent = t('มีรูป'); meta.append(p); }
+      if (it.ai && it.ai.sample) {
+        const a = document.createElement('span');
+        a.className = 'tag'; a.textContent = t('ข้อมูลทดลอง');
+        meta.append(a);
+      } else if (it.ai && it.ai.result) {
         const a = document.createElement('span');
         a.className = 'tag ' + (it.ai.result === 'clear' ? 'ai-ok' : 'pending');
-        a.textContent = 'AI: ' + it.ai.note + (it.ai.result === 'clear' ? ' · อนุมัติอัตโนมัติ' : '');
+        a.textContent = 'AI: ' + aiNoteText(it.ai) + (it.ai.result === 'clear' ? t(' · อนุมัติอัตโนมัติ') : '');
         meta.append(a);
       }
       mid.append(text, meta);
       const del = document.createElement('button');
-      del.className = 'danger'; del.type = 'button'; del.textContent = 'ลบ';
+      del.className = 'danger'; del.type = 'button'; del.textContent = t('ลบ');
       del.addEventListener('click', async () => {
-        if (!confirm('ลบรายการนี้ออกจากทุกหน้าจอใช่หรือไม่?')) return;
-        try { await Store.remove(it); toast('ลบแล้ว'); sync(); } catch (e) { alert('ลบไม่สำเร็จ: ' + (e.message || e)); }
+        if (!confirm(t('ลบรายการนี้ออกจากทุกหน้าจอใช่หรือไม่?'))) return;
+        try { await Store.remove(it); toast(t('ลบแล้ว')); sync(); } catch (e) { alert(t('ลบไม่สำเร็จ: ') + (e.message || e)); }
       });
       const acts = document.createElement('div');
       acts.className = 'acts';
       if (it.status === 'pending') {
         const ok = document.createElement('button');
-        ok.className = 'primary'; ok.type = 'button'; ok.textContent = 'อนุมัติ';
+        ok.className = 'primary'; ok.type = 'button'; ok.textContent = t('อนุมัติ');
         ok.addEventListener('click', async () => {
-          try { await Store.setStatus(it.id, 'approved'); toast('อนุมัติแล้ว กระทงขึ้นแม่น้ำ'); sync(); } catch (e) { alert('อนุมัติไม่สำเร็จ: ' + (e.message || e)); }
+          try { await Store.setStatus(it.id, 'approved'); toast(t('อนุมัติแล้ว กระทงขึ้นแม่น้ำ')); sync(); } catch (e) { alert(t('อนุมัติไม่สำเร็จ: ') + (e.message || e)); }
         });
         acts.append(ok);
-        del.textContent = 'ไม่อนุมัติ (ลบ)';
+        del.textContent = t('ไม่อนุมัติ (ลบ)');
       }
       acts.append(del);
       row.append(img, mid, acts);
@@ -849,24 +1077,24 @@
     DESIGNS.forEach((d, i) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'design';
-      b.setAttribute('aria-label', 'กระทง' + d.name);
+      b.setAttribute('aria-label', t(d.name));
       const c = document.createElement('canvas');
       c.width = 360; c.height = 300;
       c.getContext('2d').drawImage(designCanvas(i), 0, 0);
       const label = document.createElement('span');
-      label.textContent = d.name;
+      label.textContent = t(d.name);
       b.append(c, label);
       b.addEventListener('click', () => selectDesign(i));
       box.append(b);
     });
     const up = document.createElement('button');
     up.type = 'button'; up.className = 'design upload';
-    up.setAttribute('aria-label', 'ใช้รูปกระทงของฉัน');
+    up.setAttribute('aria-label', t('ใช้รูปกระทงของฉัน'));
     const c = document.createElement('canvas');
     c.width = 360; c.height = 300; c.id = 'photoTile';
     drawUploadPlaceholder(c);
     const label = document.createElement('span');
-    label.textContent = 'ใช้รูปของฉัน';
+    label.textContent = t('ใช้รูปของฉัน');
     up.append(c, label);
     up.addEventListener('click', () => $('guestPhoto').click());
     box.append(up);
@@ -879,7 +1107,7 @@
     g.fillStyle = '#ffe3a3'; g.font = '90px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('📷', 180, 140);
     g.font = '600 30px "Sarabun", "Noto Sans Thai", sans-serif';
-    g.fillText('อัปโหลดรูป', 180, 225);
+    g.fillText(t('อัปโหลดรูป'), 180, 225);
   }
   function selectDesign(i) {
     chosenDesign = i;
@@ -930,7 +1158,7 @@
         .filter(d => (d.categories[0] || {}).score >= AI_CHECK.faceScore);
       if (people.length || faces.length) {
         const best = Math.max(0, ...people.map(c => c.score), ...faces.map(d => d.categories[0].score));
-        return { status: 'pending', ai: { result: 'person', note: `พบคนหรือใบหน้า (${Math.round(best * 100)}%)` } };
+        return { status: 'pending', ai: { result: 'person', score: Math.round(best * 100), note: `พบคนหรือใบหน้า (${Math.round(best * 100)}%)` } };
       }
       return { status: 'approved', ai: { result: 'clear', note: 'ไม่พบคนในรูป' } };
     } catch (e) {
@@ -949,21 +1177,21 @@
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) return setCreateMsg('กรุณาเลือกไฟล์รูปภาพ', 'err');
-    if (file.size > 15 * 1024 * 1024) return setCreateMsg('ไฟล์ใหญ่เกิน 15 MB', 'err');
-    setCreateMsg('กำลังเตรียมรูป…');
+    if (!file.type.startsWith('image/')) return setCreateMsg(t('กรุณาเลือกไฟล์รูปภาพ'), 'err');
+    if (file.size > 15 * 1024 * 1024) return setCreateMsg(t('ไฟล์ใหญ่เกิน {mb} MB', { mb: 15 }), 'err');
+    setCreateMsg(t('กำลังเตรียมรูป…'));
     try {
       const src = await loadImage(file);
       const edited = buildEdited(src, 0, 0);
       const [card, pond] = await Promise.all([resizeToBlob(edited, SIZES.card, 0.85), resizeToBlob(edited, SIZES.pond, 0.82)]);
       const check = aiCheckPhoto(edited);
       guestPhoto = { card, pond, check };
-      setAiLine('🤖 AI กำลังตรวจรูป…');
+      setAiLine(t('🤖 AI กำลังตรวจรูป…'));
       check.then(r => {
         if (!guestPhoto || guestPhoto.check !== check) return;
-        if (r.status === 'approved') setAiLine('✓ AI ไม่พบคนในรูป กระทงลอยได้ทันที', 'ok');
-        else if (r.ai.result === 'person') setAiLine('AI พบคนหรือใบหน้าในรูป กระทงจะลอยหลังครูอนุมัติ', 'warn');
-        else setAiLine('AI ตรวจรูปไม่สำเร็จ กระทงจะลอยหลังครูตรวจ', 'warn');
+        if (r.status === 'approved') setAiLine(t('✓ AI ไม่พบคนในรูป กระทงลอยได้ทันที'), 'ok');
+        else if (r.ai.result === 'person') setAiLine(t('AI พบคนหรือใบหน้าในรูป กระทงจะลอยหลังครูอนุมัติ'), 'warn');
+        else setAiLine(t('AI ตรวจรูปไม่สำเร็จ กระทงจะลอยหลังครูตรวจ'), 'warn');
       });
       const tile = $('photoTile'), g = tile.getContext('2d');
       g.clearRect(0, 0, tile.width, tile.height);
@@ -973,17 +1201,17 @@
       $('photoConsent').checked = false;
       selectDesign('photo');
     } catch {
-      setCreateMsg('เปิดรูปนี้ไม่ได้ ถ้าเป็นไฟล์ HEIC ให้ตั้งกล้องเป็น JPEG หรือแปลงไฟล์ก่อน', 'err');
+      setCreateMsg(t('เปิดรูปนี้ไม่ได้ ถ้าเป็นไฟล์ HEIC ให้ตั้งกล้องเป็น JPEG หรือแปลงไฟล์ก่อน'), 'err');
     }
   });
 
   const BLOCKED = ['เหี้ย', 'สัส', 'ควย', 'หี', 'เย็ด', 'fuck', 'shit', 'bitch'];
   function checkText(text) {
     const lower = text.toLowerCase();
-    if (/(https?:\/\/|www\.|\.com|\.co\b|\.net)/i.test(text)) return 'กรุณาไม่ใส่ลิงก์';
-    if (/\d[\d\s-]{7,}\d/.test(text)) return 'กรุณาไม่ใส่เบอร์โทรหรือตัวเลขยาว';
-    if (/@\w/.test(text)) return 'กรุณาไม่ใส่อีเมลหรือบัญชีโซเชียล';
-    if (BLOCKED.some(w => lower.includes(w))) return 'ข้อความมีคำที่ไม่เหมาะสม';
+    if (/(https?:\/\/|www\.|\.com|\.co\b|\.net)/i.test(text)) return t('กรุณาไม่ใส่ลิงก์');
+    if (/\d[\d\s-]{7,}\d/.test(text)) return t('กรุณาไม่ใส่เบอร์โทรหรือตัวเลขยาว');
+    if (/@\w/.test(text)) return t('กรุณาไม่ใส่อีเมลหรือบัญชีโซเชียล');
+    if (BLOCKED.some(w => lower.includes(w))) return t('ข้อความมีคำที่ไม่เหมาะสม');
     return '';
   }
   function setCreateMsg(text, kind) {
@@ -997,16 +1225,16 @@
     const wish = $('wish').value.replace(/\s+/g, ' ').trim();
     const name = $('guestName').value.replace(/\s+/g, ' ').trim();
     const usePhoto = chosenDesign === 'photo';
-    if (chosenDesign === -1) return setCreateMsg('กรุณาเลือกกระทงหรืออัปโหลดรูปก่อน', 'err');
-    if (usePhoto && !guestPhoto) return setCreateMsg('กรุณาเลือกรูปก่อน', 'err');
-    if (usePhoto && !$('photoConsent').checked) return setCreateMsg('กรุณาติ๊กยืนยันเรื่องรูปก่อน', 'err');
-    if (wish.length < 2) { $('wish').focus(); return setCreateMsg('กรุณาเขียนคำอธิษฐาน', 'err'); }
+    if (chosenDesign === -1) return setCreateMsg(t('กรุณาเลือกกระทงหรืออัปโหลดรูปก่อน'), 'err');
+    if (usePhoto && !guestPhoto) return setCreateMsg(t('กรุณาเลือกรูปก่อน'), 'err');
+    if (usePhoto && !$('photoConsent').checked) return setCreateMsg(t('กรุณาติ๊กยืนยันเรื่องรูปก่อน'), 'err');
+    if (wish.length < 2) { $('wish').focus(); return setCreateMsg(t('กรุณาเขียนคำอธิษฐาน'), 'err'); }
     const problem = checkText(wish) || checkText(name);
     if (problem) return setCreateMsg(problem, 'err');
     let lastTime = 0;
     try { lastTime = Number(localStorage.getItem('krathong-last-guest')) || 0; } catch {}
     const wait = Math.ceil(GUEST_COOLDOWN_SEC - (Date.now() - lastTime) / 1000);
-    if (wait > 0) return setCreateMsg(`ลอยกระทงได้อีกครั้งในอีก ${wait} วินาที`, 'err');
+    if (wait > 0) return setCreateMsg(t('ลอยกระทงได้อีกครั้งในอีก {s} วินาที', { s: wait }), 'err');
 
     const btn = $('floatBtn');
     btn.disabled = true;
@@ -1014,10 +1242,10 @@
       if (items.size >= MAX_ITEMS) throw new Error('full');
       let approvedNow = true;
       if (usePhoto) {
-        btn.textContent = 'AI กำลังตรวจรูป…';
+        btn.textContent = t('AI กำลังตรวจรูป…');
         const r = await guestPhoto.check;
         approvedNow = r.status === 'approved';
-        btn.textContent = 'กำลังส่ง…';
+        btn.textContent = t('กำลังส่ง…');
         pendingHighlight = await Store.addGuestPhoto({ card: guestPhoto.card, pond: guestPhoto.pond }, wish, name, r.status, r.ai);
       } else {
         pendingHighlight = await Store.addGuestDesign(chosenDesign, wish, name);
@@ -1031,18 +1259,18 @@
         selectDesign(-1);
       }
       if (!approvedNow) {
-        setCreateMsg('ส่งกระทงแล้ว กระทงของคุณจะลอยขึ้นแม่น้ำเมื่อครูตรวจรูปเรียบร้อย', 'ok');
+        setCreateMsg(t('ส่งกระทงแล้ว กระทงของคุณจะลอยขึ้นแม่น้ำเมื่อครูตรวจรูปเรียบร้อย'), 'ok');
       } else {
         setCreateMsg('');
         location.hash = '#pond/guest';
-        toast('ลอยกระทงแล้ว ขอให้คำอธิษฐานเป็นจริง');
+        toast(t('ลอยกระทงแล้ว ขอให้คำอธิษฐานเป็นจริง'));
       }
     } catch (e) {
       console.error(e);
-      setCreateMsg(e.message === 'full' ? 'แม่น้ำเต็มแล้ว กรุณาลองใหม่ภายหลัง' : 'ลอยกระทงไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง', 'err');
+      setCreateMsg(e.message === 'full' ? t('แม่น้ำเต็มแล้ว กรุณาลองใหม่ภายหลัง') : t('ลอยกระทงไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง'), 'err');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'ลอยกระทง';
+      btn.textContent = t('ลอยกระทง');
     }
   });
 
@@ -1074,30 +1302,33 @@
   $('useEmailLink').addEventListener('click', e => {
     e.preventDefault();
     emailMode = !emailMode;
-    $('loginEmail').style.display = emailMode ? '' : 'none';
-    $('pin').placeholder = emailMode ? 'รหัสผ่าน' : 'รหัส PIN';
-    $('pin').inputMode = emailMode ? 'text' : 'numeric';
-    $('loginHint').textContent = emailMode ? 'ใช้อีเมลและรหัสผ่านบัญชีครู' : 'ใส่รหัส PIN ของครู';
-    $('useEmailLink').textContent = emailMode ? 'เข้าด้วยรหัส PIN แทน' : 'เข้าด้วยอีเมลแทน';
+    applyEmailMode();
   });
+  function applyEmailMode() {
+    $('loginEmail').style.display = emailMode ? '' : 'none';
+    $('pin').placeholder = emailMode ? t('รหัสผ่าน') : t('รหัส PIN');
+    $('pin').inputMode = emailMode ? 'text' : 'numeric';
+    $('loginHint').textContent = emailMode ? t('ใช้อีเมลและรหัสผ่านบัญชีครู') : t('ใส่รหัส PIN ของครู');
+    $('useEmailLink').textContent = emailMode ? t('เข้าด้วยรหัส PIN แทน') : t('เข้าด้วยอีเมลแทน');
+  }
   $('loginBtn').addEventListener('click', async () => {
     const email = emailMode ? $('loginEmail').value.trim() : TEACHER_EMAIL;
     const password = emailMode ? $('pin').value : PIN_PREFIX + normalizePin($('pin').value);
-    if (!email || !$('pin').value.trim()) return setLoginMsg(emailMode ? 'กรุณาใส่อีเมลและรหัสผ่าน' : 'กรุณาใส่รหัส PIN');
+    if (!email || !$('pin').value.trim()) return setLoginMsg(emailMode ? t('กรุณาใส่อีเมลและรหัสผ่าน') : t('กรุณาใส่รหัส PIN'));
     const btn = $('loginBtn');
-    btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ…';
+    btn.disabled = true; btn.textContent = t('กำลังเข้าสู่ระบบ…');
     try {
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) return setLoginMsg(emailMode ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' : 'รหัส PIN ไม่ถูกต้อง');
+      if (error) return setLoginMsg(emailMode ? t('อีเมลหรือรหัสผ่านไม่ถูกต้อง') : t('รหัส PIN ไม่ถูกต้อง'));
       if (!(await checkAdmin())) {
         await sb.auth.signOut();
-        return setLoginMsg('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู กรุณาติดต่อผู้ดูแลระบบ');
+        return setLoginMsg(t('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู กรุณาติดต่อผู้ดูแลระบบ'));
       }
       $('pin').value = ''; $('loginMsg').textContent = '';
       showAdmin();
       sync();
     } finally {
-      btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+      btn.disabled = false; btn.textContent = t('เข้าสู่ระบบ');
     }
   });
   $('pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
@@ -1152,8 +1383,8 @@
     return new Promise((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('encode')), outType, quality));
   }
   async function saveStudent(edited, room, sample) {
-    if (!isRoom(room)) throw new Error('กรุณาเลือกห้องเรียนก่อนส่ง');
-    if (items.size >= MAX_ITEMS) throw new Error(`ครบ ${MAX_ITEMS} รายการแล้ว กรุณาลบรายการเก่าก่อน`);
+    if (!isRoom(room)) throw new Error(t('กรุณาเลือกห้องเรียนก่อนส่ง'));
+    if (items.size >= MAX_ITEMS) throw new Error(t('ครบ {max} รายการแล้ว กรุณาลบรายการเก่าก่อน', { max: MAX_ITEMS }));
     const [large, card, pond] = await Promise.all([
       resizeToBlob(edited, SIZES.large, 0.88), resizeToBlob(edited, SIZES.card, 0.85), resizeToBlob(edited, SIZES.pond, 0.82),
     ]);
@@ -1170,8 +1401,8 @@
     preview.width = Math.round(edited.width * scale);
     preview.height = Math.round(edited.height * scale);
     preview.getContext('2d').drawImage(edited, 0, 0, preview.width, preview.height);
-    const note = Math.max(edited.width, edited.height) < SIZES.card ? ' (ภาพค่อนข้างเล็ก อาจไม่คมเมื่อฉายเต็มจอ)' : '';
-    $('sizeInfo').textContent = `ขนาดหลังแก้ไข ${edited.width}×${edited.height} พิกเซล${note}`;
+    const note = Math.max(edited.width, edited.height) < SIZES.card ? t(' (ภาพค่อนข้างเล็ก อาจไม่คมเมื่อฉายเต็มจอ)') : '';
+    $('sizeInfo').textContent = t('ขนาดหลังแก้ไข {w}×{h} พิกเซล{note}', { w: edited.width, h: edited.height, note });
   }
   function setPickMsg(text, kind) { const el = $('pickMsg'); el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
   function closeEditor() { source = null; $('editor').classList.remove('show'); }
@@ -1180,10 +1411,10 @@
     input.value = '';
     if (!file) return;
     setPickMsg('');
-    if (!file.type.startsWith('image/')) return setPickMsg('กรุณาเลือกไฟล์รูปภาพ', 'err');
-    if (file.size > MAX_FILE_MB * 1024 * 1024) return setPickMsg(`ไฟล์ใหญ่เกิน ${MAX_FILE_MB} MB`, 'err');
+    if (!file.type.startsWith('image/')) return setPickMsg(t('กรุณาเลือกไฟล์รูปภาพ'), 'err');
+    if (file.size > MAX_FILE_MB * 1024 * 1024) return setPickMsg(t('ไฟล์ใหญ่เกิน {mb} MB', { mb: MAX_FILE_MB }), 'err');
     try { source = await loadImage(file); }
-    catch { return setPickMsg('เปิดรูปนี้ไม่ได้ ถ้าเป็นไฟล์ HEIC ให้ตั้งกล้องเป็น JPEG หรือแปลงไฟล์ก่อน', 'err'); }
+    catch { return setPickMsg(t('เปิดรูปนี้ไม่ได้ ถ้าเป็นไฟล์ HEIC ให้ตั้งกล้องเป็น JPEG หรือแปลงไฟล์ก่อน'), 'err'); }
     rotation = 0; trim = 0; $('trim').value = 0; $('trimVal').textContent = '0%';
     $('editor').classList.add('show');
     drawPreview();
@@ -1197,27 +1428,35 @@
   $('sendBtn').addEventListener('click', async () => {
     if (!source) return;
     const room = $('roomSelect').value;
-    if (!room) { setPickMsg('กรุณาเลือกห้องเรียนก่อนส่ง', 'err'); $('roomSelect').focus(); return; }
+    if (!room) { setPickMsg(t('กรุณาเลือกห้องเรียนก่อนส่ง'), 'err'); $('roomSelect').focus(); return; }
     const btn = $('sendBtn');
-    btn.disabled = true; btn.textContent = 'กำลังส่ง…';
+    btn.disabled = true; btn.textContent = t('กำลังส่ง…');
     try {
       const out = await saveStudent(buildEdited(source, rotation, trim), room);
       const kb = b => Math.round(b.size / 1024);
-      setPickMsg(`ส่งภาพเข้า ${roomLabel(room)} แล้ว (ภาพใหญ่ ${kb(out.large)} KB · การ์ด ${kb(out.card)} KB · อ่างน้ำ ${kb(out.pond)} KB)`, 'ok');
+      setPickMsg(t('ส่งภาพเข้า {room} แล้ว (ภาพใหญ่ {a} KB · การ์ด {b} KB · อ่างน้ำ {c} KB)', { room: roomLabel(room), a: kb(out.large), b: kb(out.card), c: kb(out.pond) }), 'ok');
       closeEditor();
     } catch (e) {
-      setPickMsg(e.message && e.message !== 'encode' ? e.message : 'ส่งภาพไม่สำเร็จ ลองอีกครั้ง', 'err');
+      setPickMsg(e.message && e.message !== 'encode' ? e.message : t('ส่งภาพไม่สำเร็จ ลองอีกครั้ง'), 'err');
     } finally {
-      btn.disabled = false; btn.textContent = 'ส่งภาพ';
+      btn.disabled = false; btn.textContent = t('ส่งภาพ');
     }
   });
-  fillRoomSelect($('roomSelect'));
-  fillRoomSelect($('galleryRoom'));
-  {
-    const og = document.createElement('optgroup'); og.label = 'รายห้อง';
-    ROOMS.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.textContent = r.label; og.append(o); });
-    $('manageFilter').append(og);
+  function refreshRoomSelects() {
+    for (const id of ['roomSelect', 'galleryRoom', 'manageFilter']) {
+      const sel = $(id), keep = sel.value;
+      sel.querySelectorAll('optgroup').forEach(g => g.remove());
+      if (id === 'manageFilter') {
+        const og = document.createElement('optgroup'); og.label = t('รายห้อง');
+        ROOMS.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.textContent = r.label; og.append(o); });
+        sel.append(og);
+      } else {
+        fillRoomSelect(sel);
+      }
+      sel.value = keep;
+    }
   }
+  refreshRoomSelects();
   try { const saved = localStorage.getItem('krathong-last-room'); if (isRoom(saved)) $('roomSelect').value = saved; } catch {}
   $('roomSelect').addEventListener('change', e => { try { localStorage.setItem('krathong-last-room', e.target.value); } catch {} if (e.target.value) setPickMsg(''); });
   $('galleryRoom').addEventListener('change', e => { location.hash = e.target.value === 'all' ? '#gallery' : '#gallery/' + e.target.value; });
@@ -1272,10 +1511,10 @@
       const chosen = $('roomSelect').value;
       if (chosen) {
         for (let i = 0; i < 6; i++) await saveStudent(sampleDrawing(), chosen, true);
-        $('sampleMsg').textContent = `เพิ่มภาพตัวอย่าง 6 ภาพเข้า ${roomLabel(chosen)} แล้ว`;
+        $('sampleMsg').textContent = t('เพิ่มภาพตัวอย่าง 6 ภาพเข้า {room} แล้ว', { room: roomLabel(chosen) });
       } else {
         for (const r of ROOMS) await saveStudent(sampleDrawing(), r.id, true);
-        $('sampleMsg').textContent = `ยังไม่ได้เลือกห้อง จึงเพิ่มให้ทุกห้อง ห้องละ 1 ภาพ (${ROOMS.length} ภาพ)`;
+        $('sampleMsg').textContent = t('ยังไม่ได้เลือกห้อง จึงเพิ่มให้ทุกห้อง ห้องละ 1 ภาพ ({n} ภาพ)', { n: ROOMS.length });
       }
       $('sampleMsg').className = 'msg ok';
     } catch (e) { $('sampleMsg').textContent = e.message; $('sampleMsg').className = 'msg err'; }
@@ -1287,20 +1526,20 @@
         await Store.addGuestDesign(Math.floor(Math.random() * DESIGNS.length), wish, name, { sample: true });
       }
       sync();
-      $('sampleMsg').textContent = 'เพิ่มกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบแล้ว';
+      $('sampleMsg').textContent = t('เพิ่มกระทงผู้ร่วมกิจกรรมตัวอย่าง 8 ใบแล้ว');
       $('sampleMsg').className = 'msg ok';
-    } catch (e) { $('sampleMsg').textContent = 'เพิ่มไม่สำเร็จ: ' + (e.message || e); $('sampleMsg').className = 'msg err'; }
+    } catch (e) { $('sampleMsg').textContent = t('เพิ่มไม่สำเร็จ: ') + (e.message || e); $('sampleMsg').className = 'msg err'; }
   });
   $('clearSampleBtn').addEventListener('click', async () => {
     const samples = [...items.values()].filter(it => it.ai && it.ai.sample);
-    if (!samples.length) { $('sampleMsg').textContent = 'ไม่มีข้อมูลทดลอง'; $('sampleMsg').className = 'msg'; return; }
-    if (!confirm(`ลบข้อมูลทดลอง ${samples.length} รายการใช่หรือไม่?`)) return;
+    if (!samples.length) { $('sampleMsg').textContent = t('ไม่มีข้อมูลทดลอง'); $('sampleMsg').className = 'msg'; return; }
+    if (!confirm(t('ลบข้อมูลทดลอง {n} รายการใช่หรือไม่?', { n: samples.length }))) return;
     try {
       for (const it of samples) await Store.remove(it);
       sync();
-      $('sampleMsg').textContent = `ลบข้อมูลทดลอง ${samples.length} รายการแล้ว`;
+      $('sampleMsg').textContent = t('ลบข้อมูลทดลอง {n} รายการแล้ว', { n: samples.length });
       $('sampleMsg').className = 'msg ok';
-    } catch (e) { $('sampleMsg').textContent = 'ลบไม่สำเร็จ: ' + (e.message || e); $('sampleMsg').className = 'msg err'; }
+    } catch (e) { $('sampleMsg').textContent = t('ลบไม่สำเร็จ: ') + (e.message || e); $('sampleMsg').className = 'msg err'; }
   });
 
   /* ==========================================================
@@ -1634,14 +1873,14 @@
     }
   }
 
-  let last = performance.now(), t = 0;
+  let last = performance.now(), clock = 0;
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
-    last = now; t += dt;
+    last = now; clock += dt;
     if ($('view-scene').classList.contains('active') && resizeScene()) {
       pg.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawSky(t, dt);
-      drawWater(t);
+      drawSky(clock, dt);
+      drawWater(clock);
       const b = pondBounds();
       const visible = pondKrathongs.filter(k => inRoom(k.item, sceneRoom));
       const n = Math.max(visible.length, 1);
@@ -1652,14 +1891,14 @@
       for (const k of [...visible].sort((a, c) => a.y - c.y)) {
         const sc = s * (k.scale < 1 ? 1 - Math.pow(1 - k.scale, 3) : 1);
         if (sc < 1) continue;
-        const bob = Math.sin(t * k.bobSpeed + k.phase) * 2.5;
+        const bob = Math.sin(clock * k.bobSpeed + k.phase) * 2.5;
         pg.save();
         pg.translate(k.x, k.y + bob);
-        pg.rotate(Math.sin(t * k.bobSpeed * 0.7 + k.phase) * 0.06);
-        const top = k.item.type === 'guest' && !k.item.photo ? drawGuestKrathong(k, sc, t) : drawStudentKrathong(k, sc, t);
+        pg.rotate(Math.sin(clock * k.bobSpeed * 0.7 + k.phase) * 0.06);
+        const top = k.item.type === 'guest' && !k.item.photo ? drawGuestKrathong(k, sc, clock) : drawStudentKrathong(k, sc, clock);
         pg.restore();
         if (k.item.type === 'guest' && k.item.wish) {
-          const v = Math.sin(t * 0.35 + k.phase * 3);
+          const v = Math.sin(clock * 0.35 + k.phase * 3);
           const fresh = k.item.isNewUntil > nowMs;
           const alpha = fresh ? 1 : Math.min(1, Math.max(0, (v - 0.55) / 0.2));
           if (alpha > 0) bubbles.push([k.item, k.x, k.y + bob + top, alpha]);
@@ -1668,9 +1907,9 @@
       for (const bb of bubbles) drawBubble(...bb);
       if (!visible.length) {
         pg.fillStyle = 'rgba(255,255,255,0.8)';
-        pg.font = '20px "Sarabun", "Noto Sans Thai", sans-serif';
+        pg.font = Math.round(Math.min(20, PW / 22)) + 'px "Sarabun", "Noto Sans Thai", "PingFang SC", "Microsoft YaHei", sans-serif';
         pg.textAlign = 'center'; pg.textBaseline = 'middle';
-        pg.fillText(sceneRoom === 'guest' ? 'ยังไม่มีกระทง มาร่วมลอยเป็นคนแรกกัน' : 'รอภาพกระทงจากครู', PW / 2, PH * 0.8);
+        pg.fillText(sceneRoom === 'guest' ? t('ยังไม่มีกระทง มาร่วมลอยเป็นคนแรกกัน') : t('รอภาพกระทงจากครู'), PW / 2, PH * HORIZON + Math.min(70, PH * (1 - HORIZON) * 0.25));
       }
     }
     requestAnimationFrame(frame);
@@ -1678,14 +1917,14 @@
 
   let shownCount = 0;
   function updateSceneLabels() {
-    $('pondLabel').textContent = `${roomLabel(sceneRoom)} · กระทง ${roomCount(sceneRoom)} ใบ`;
+    $('pondLabel').textContent = t('{room} · กระทง {n} ใบ', { room: roomLabel(sceneRoom), n: roomCount(sceneRoom) });
     const target = roomCount('all');
     const start = shownCount, t0 = performance.now();
     cancelAnimationFrame(updateSceneLabels.raf);
     const step = now => {
       const p = Math.min(1, (now - t0) / 800);
       shownCount = Math.round(start + (target - start) * (1 - Math.pow(1 - p, 3)));
-      $('homeCount').textContent = shownCount.toLocaleString('th-TH');
+      $('homeCount').textContent = shownCount.toLocaleString(LOCALES[LANG]);
       if (p < 1) updateSceneLabels.raf = requestAnimationFrame(step);
     };
     updateSceneLabels.raf = requestAnimationFrame(step);
@@ -1740,7 +1979,7 @@
     const btn = $('musicBtn');
     btn.textContent = on ? '🔊' : '🔇';
     btn.classList.toggle('on', on);
-    btn.title = on ? 'ปิดเพลงพื้นหลัง' : 'เปิดเพลงพื้นหลัง';
+    btn.title = on ? t('ปิดเพลงพื้นหลัง') : t('เปิดเพลงพื้นหลัง');
     btn.setAttribute('aria-label', btn.title);
   }
   async function musicStart() {
@@ -1750,7 +1989,7 @@
       await bgm.play();
     } catch (e) {
       setMusicUI(false);
-      toast(e.name === 'NotAllowedError' ? 'กดปุ่มอีกครั้งเพื่อเปิดเพลง' : 'เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด ' + MUSIC_FILE + ' ไว้คู่กับ index.html');
+      toast(e.name === 'NotAllowedError' ? t('กดปุ่มอีกครั้งเพื่อเปิดเพลง') : t('เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด {file} ไว้คู่กับ index.html', { file: MUSIC_FILE }));
     }
   }
   function musicStop() {
@@ -1758,7 +1997,7 @@
     bgm.pause();
   }
   bgm.addEventListener('error', () => {
-    if (musicOn) { setMusicUI(false); toast('เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด ' + MUSIC_FILE + ' ไว้คู่กับ index.html'); }
+    if (musicOn) { setMusicUI(false); toast(t('เปิดไฟล์เพลงไม่ได้ ตรวจว่าอัปโหลด {file} ไว้คู่กับ index.html', { file: MUSIC_FILE })); }
   });
   $('musicBtn').addEventListener('click', () => (musicOn ? musicStop() : musicStart()));
 
@@ -1770,9 +2009,46 @@
   setInterval(sync, 15000);   // สำรองกรณีพลาดการแจ้งเตือนจาก Realtime
   setInterval(() => { if (location.hash.startsWith('#gallery')) renderGallery(); }, 10000);
 
+  function aiNoteText(ai) {
+    switch (ai.result) {
+      case 'clear': return t('ไม่พบคนในรูป');
+      case 'person': {
+        const p = ai.score != null ? ai.score : (String(ai.note || '').match(/(\d+)%/) || [])[1] || '?';
+        return t('พบคนหรือใบหน้า ({p}%)', { p });
+      }
+      case 'error': return t('AI ตรวจไม่สำเร็จ');
+      case 'off': return t('ปิด AI ไว้');
+      default: return ai.note || '';
+    }
+  }
+
+  /* ---------- เปลี่ยนภาษา ---------- */
+  function setLang(lang, save) {
+    LANG = LANGS.includes(lang) ? lang : 'th';
+    if (save) { try { localStorage.setItem('krathong-lang', LANG); } catch {} }
+    document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : LANG;
+    document.body.classList.toggle('lang-zh', LANG === 'zh');
+    document.querySelectorAll('#langSwitch button').forEach(b => b.classList.toggle('on', b.dataset.lang === LANG));
+    translateStatic(document.body);
+    refreshRoomSelects();
+    document.querySelectorAll('#designs .design').forEach((b, i) => {
+      const label = b.querySelector('span');
+      if (b.classList.contains('upload')) { label.textContent = t('ใช้รูปของฉัน'); b.setAttribute('aria-label', t('ใช้รูปกระทงของฉัน')); }
+      else if (DESIGNS[i]) { label.textContent = t(DESIGNS[i].name); b.setAttribute('aria-label', t(DESIGNS[i].name)); }
+    });
+    if (!guestPhoto && $('photoTile')) drawUploadPlaceholder($('photoTile'));
+    applyEmailMode();
+    setMusicUI(musicOn);
+    for (const it of items.values()) it._lines = null;
+    renderAll();
+    updateSceneLabels();
+  }
+  document.querySelectorAll('#langSwitch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+
   document.querySelectorAll('img[data-logo]').forEach(i => { i.src = $('logoSrc').src; });
   renderDesigns();
   renderRooms();
+  setLang(LANG, false);
   checkAdmin().finally(() => { route(); sync(); });
   requestAnimationFrame(now => { last = now; frame(now); });
 })();
